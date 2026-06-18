@@ -1,0 +1,16 @@
+# Git
+*
+!.gitignore
+
+# Forge
+!src/
+!src/**
+!.forge/
+!.forge/Makefile
+!config.toml
+
+# Test directories
+!test/
+!test/**
+
+# Extra

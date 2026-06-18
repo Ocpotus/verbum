@@ -1,0 +1,19 @@
+%{  /* -*- C -*- */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+#include "../memory/memory.h"
+
+#include "token.h"
+%}
+%%
+%%
+void token_delete(Token t) {
+	if(t.type == TokenType_Double_Literal ||
+	   t.type == TokenType_Single_Literal ||
+	   t.type == TokenType_Identifier) {
+		memory_delete((void *)t.lexeme);
+	}
+}

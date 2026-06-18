@@ -1,0 +1,145 @@
+Crate = { [ Attribute ] , Item } ;
+
+Item = [ Visibility ] , ( Function | Struct | Enum | Union | Trait | Implementation | UseDeclaration | Module | TypeAlias | MacroRules | MacroInvocation | ExternBlock | ConstBlock ) ;
+
+Visibility = "pub" , [ "(" , ( "crate" | "self" | "super" | "in" , Path ) , ")" ] ;
+
+Attribute = "#" , [ "!" ] , "[" , MetaItem , "]" ;
+MetaItem = Identifier , [ "(" , [ MetaItem , { "," , MetaItem } ] , ")" | "=" , Literal ] ;
+
+UseDeclaration = "use" , Path , [ "::" , ( "*" | "{" , Path , { "," , Path } , "}" ) ] , ";" ;
+
+Module = "mod" , Identifier , ( ";" | "{" , { [ Attribute ] , Item } , "}" ) ;
+
+TypeAlias = "type" , Identifier , [ GenericParams ] , [ WhereClause ] , "=" , Type , ";" ;
+
+ConstBlock = "const" , ( Identifier | "_" ) , ":" , Type , "=" , Expression , ";" ;
+
+ExternBlock = [ "unsafe" ] , "extern" , [ StringLiteral ] , "{" , { [ Attribute ] , [ Visibility ] , ExternItem } , "}" ;
+ExternItem = ( "fn" , Identifier , [ GenericParams ] , ParamList , [ "->" , Type ] , [ WhereClause ] , ";" 
+             | "static" , [ "mut" ] , Identifier , ":" , Type , ";" ) ;
+
+Function = [ "extern" , [ StringLiteral ] ] , [ "unsafe" ] , [ "async" ] , [ "const" ] , "fn" , Identifier , [ GenericParams ] , ParamList , [ "->" , Type ] , [ WhereClause ] , Block ;
+
+ParamList = "(" , [ Param , { "," , Param } ] , [ "," ] , ")" ;
+Param = [ "mut" ] , Pattern , ":" , Type | SelfParam ;
+SelfParam = [ "&" ] , [ Lifetime ] , [ "mut" ] , "self" ;
+
+Struct = "struct" , Identifier , [ GenericParams ] , [ WhereClause ] , ( StructFields | TupleFields | ";" ) ;
+StructFields = "{" , [ Field , { "," , Field } ] , [ "," ] , "}" ;
+Field = [ [ Attribute ] , Visibility ] , Identifier , ":" , Type ;
+TupleFields = "(" , [ [ Attribute ] , Visibility , Type , { "," , Type } ] , [ "," ] , ")" , ";" ;
+
+Enum = "enum" , Identifier , [ GenericParams ] , [ WhereClause ] , "{" , [ Variant , { "," , Variant } ] , [ "," ] , "}" ;
+Variant = [ Attribute ] , Identifier , [ StructFields | TupleFields ] , [ "=" , Expression ] ;
+
+Union = "union" , Identifier , [ GenericParams ] , [ WhereClause ] , StructFields ;
+
+Trait = [ "unsafe" ] , "trait" , Identifier , [ GenericParams ] , [ ":" , TypeBounds ] , [ WhereClause ] , "{" , { TraitItem } , "}" ;
+TraitItem = [ Attribute ] , ( FunctionSignature , ";" | Function | AssociatedType | AssociatedConst ) ;
+AssociatedType = "type" , Identifier , [ ":" , TypeBounds ] , [ "=" , Type ] , ";" ;
+AssociatedConst = "const" , Identifier , ":" , Type , [ "=" , Expression ] , ";" ;
+FunctionSignature = [ "extern" , [ StringLiteral ] ] , [ "unsafe" ] , [ "async" ] , [ "const" ] , "fn" , Identifier , [ GenericParams ] , ParamList , [ "->" , Type ] , [ WhereClause ] ;
+
+Implementation = [ "unsafe" ] , "impl" , [ GenericParams ] , ( Type | Path , "for" , Type ) , [ WhereClause ] , "{" , { [ Attribute ] , ImplItem } , "}" ;
+ImplItem = [ Visibility ] , ( Function | AssociatedType | AssociatedConst | TypeAlias ) ;
+
+WhereClause = "where" , WherePredicate , { "," , WherePredicate } ;
+WherePredicate = ( Type | Lifetime ) , ":" , TypeBounds ;
+
+Type = PrimitiveType | UserDefinedType | ReferenceType | RawPointerType | ArrayType | SliceType | TupleType | FnPointerType | ImplTraitType | DynTraitType | NeverType | MacroInvocation | InferredType ;
+PrimitiveType = "i32" | "i64" | "i128" | "u32" | "u64" | "u128" | "isize" | "usize" | "f32" | "f64" | "bool" | "char" | "str" ;
+UserDefinedType = Path , [ GenericArgs ] ;
+ReferenceType = "&" , [ Lifetime ] , [ "mut" ] , Type ;
+RawPointerType = "*" , ( "const" | "mut" ) , Type ;
+ArrayType = "[" , Type , ";" , Expression , "]" ;
+SliceType = "[" , Type , "]" ;
+TupleType = "(" , [ Type , { "," , Type } ] , [ "," ] , ")" ;
+FnPointerType = [ "unsafe" ] , [ "extern" , [ StringLiteral ] ] , "fn" , ParamList , [ "->" , Type ] ;
+ImplTraitType = "impl" , TypeBounds ;
+DynTraitType = "dyn" , TypeBounds ;
+NeverType = "!" ;
+InferredType = "_" ;
+
+GenericParams = "<" , GenericParam , { "," , GenericParam } , ">" ;
+GenericParam = Lifetime [ ":" , LifetimeBounds ] | Identifier , [ ":" , TypeBounds ] | "const" , Identifier , ":" , Type ;
+TypeBounds = TypeBound , { "+" , TypeBound } ;
+TypeBound = [ "?" ] , ( Path | Lifetime ) ;
+LifetimeBounds = Lifetime , { "+" , Lifetime } ;
+
+GenericArgs = "<" , GenericArg , { "," , GenericArg } , ">" ;
+GenericArg = Lifetime | Type | Binding | Expression ;
+Binding = Identifier , "=" , Type ;
+
+Block = [ "unsafe" ] , "{" , { Statement } , [ Expression ] , "}" ;
+
+Statement = LetStatement | ExpressionStatement | Item | ";" ;
+LetStatement = [ Attribute ] , "let" , Pattern , [ ":" , Type ] , [ "=" , Expression ] , [ "else" , Block ] , ";" ;
+ExpressionStatement = Expression , ( ";" | "" ) ;
+
+Expression = Literal | Identifier | Path | Block | Assignment | BinaryExpr | UnaryExpr | CastExpr
+           | MatchExpr | IfExpr | LoopExpr | CallExpr | MethodCallExpr | FieldAccessExpr | RangeExpr
+           | IndexExpr | ClosureExpr | MacroInvocation | ReturnExpr | BreakExpr | ContinueExpr 
+           | AwaitExpr | TryExpr | StructLiteral | TupleLiteral | ArrayLiteral ;
+
+Assignment = Expression , ( "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ) , Expression ;
+BinaryExpr = Expression , ( "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "&" | "|" | "^" | "<<" | ">>" ) , Expression ;
+UnaryExpr = ( "-" | "*" | "!" | "&" , [ "mut" ] ) , Expression ;
+CastExpr = Expression , "as" , Type ;
+
+IfExpr = "if" , ( Expression | "let" , Pattern , "=" , Expression ) , Block , [ "else" , ( Block | IfExpr ) ] ;
+LoopExpr = [ Label ] , ( "loop" | "while" , ( Expression | "let" , Pattern , "=" , Expression ) | "for" , Pattern , "in" , Expression ) , Block ;
+Label = "'" , Identifier , ":" ;
+
+CallExpr = Expression , "(" , [ Expression , { "," , Expression } ] , [ "," ] , ")" ;
+MethodCallExpr = Expression , "." , Identifier , [ "::" , GenericArgs ] , "(" , [ Expression , { "," , Expression } ] , [ "," ] , ")" ;
+FieldAccessExpr = Expression , "." , ( Identifier | IntegerLiteral ) ;
+IndexExpr = Expression , "[" , Expression , "]" ;
+RangeExpr = [ Expression ] , ( ".." | "..=" ) , [ Expression ] ;
+
+StructLiteral = Path , "{" , [ StructLiteralField , { "," , StructLiteralField } ] , [ "," , ".." , Expression ] , "}" ;
+StructLiteralField = ( Identifier , [ ":" , Expression ] ) | BaseStructFields ;
+BaseStructFields = ".." , Expression ;
+
+TupleLiteral = "(" , Expression , "," , [ Expression , { "," , Expression } ] , ")" ;
+ArrayLiteral = "[" , ( [ Expression , { "," , Expression } ] | Expression , ";" , Expression ) , "]" ;
+
+ClosureExpr = [ "move" ] , [ "static" | "async" ] , "|" , [ ClosureParam , { "," , ClosureParam } ] , "|" , [ "->" , Type ] , ( Expression | Block ) ;
+ClosureParam = Pattern , [ ":" , Type ] ;
+
+MatchExpr = "match" , Expression , "{" , { MatchArm } , "}" ;
+MatchArm = [ Attribute ] , Pattern , [ "if" , Expression ] , "=>" , ( Expression , "," | Block ) ;
+
+MacroInvocation = Path , "!" , ( "(" , { MacroArg } , ")" | "[" , { MacroArg } , "]" | "{" , { MacroArg } , "}" ) ;
+MacroArg = Token | Expression | Statement ;
+
+MacroRules = "macro_rules" , "!" , Identifier , "{" , { MacroRule } , "}" ;
+MacroRule = "(" , { MacroPattern } , ")" , "=>" , "{" , { MacroExpansion } , "}" , ";" ;
+
+ReturnExpr = "return" , [ Expression ] ;
+BreakExpr = "break" , [ Label ] , [ Expression ] ;
+ContinueExpr = "continue" , [ Label ] ;
+AwaitExpr = Expression , "." , "await" ;
+TryExpr = Expression , "?" ;
+
+Path = [ "::" ] , PathSegment , { "::" , PathSegment } ;
+PathSegment = Identifier , [ "::" , GenericArgs ] | "super" | "self" | "Self" | "crate" ;
+
+Pattern = "_" | Literal | Identifier | Path | RefPattern | StructPattern | TuplePattern | SlicePattern | RangePattern | OrPattern ;
+RefPattern = [ "ref" ] , [ "mut" ] , Identifier , [ "@" , Pattern ] ;
+StructPattern = Path , "{" , [ FieldPattern , { "," , FieldPattern } ] , [ "," , ".." ] , "}" ;
+FieldPattern = ( Identifier , ":" , Pattern ) | Identifier ;
+TuplePattern = "(" , [ Pattern , { "," , Pattern } ] , ")" ;
+SlicePattern = "[" , [ Pattern , { "," , Pattern } ] , "]" ;
+RangePattern = ( Literal | Path ) , ( ".." | "..=" ) , ( Literal | Path ) ;
+OrPattern = Pattern , { "|" , Pattern } ;
+
+Identifier = Letter , { Letter | Digit | "_" } ;
+Lifetime = "'" , Identifier ;
+
+Literal = IntegerLiteral | FloatLiteral | StringLiteral | RawStringLiteral | ByteStringLiteral | CharLiteral | BooleanLiteral ;
+BooleanLiteral = "true" | "false" ;
+
+Letter = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+       | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
+Digit  = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;

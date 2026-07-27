@@ -6,96 +6,46 @@
 
 #include "../memory/memory.h"
 #include "../token/token.h"
-#include "../lexer/lexer.h"
+#include "../rule/rule.h"
+#include "../grammar/grammar.h"
 
 #include "analyzer.h"
 
 
 static void token_set_insert(cvector(Token) *set, Token t);
 static bool rule_has_any_cycle(cvector(Rule) rules, Rule start_rule);
+static bool rule_referenced(cvector(Rule) rules, Rule target);
 
-typedef struct Analyzer {
-	Lexer *l;
-} Analyzer;
-
-Analyzer *analyzer_new(Lexer *l) {
-	Analyzer *result = memory_new(1 * sizeof(*result));
-
-	if(result != NULL) {
-		result->l = l;
-	}
-
-	return result;
-}
-
-void analyzer_delete(Analyzer *a) {
-	lexer_delete(a->l);
-	memory_delete(a);
-}
-
-Grammar analyzer_analyze(Analyzer *a) {
+Grammar analyzer_analyze(cvector(Rule) r) {
 	Grammar result = { 
 		.original = {
 			.terminal_rules = NULL,
 			.non_terminal_rules = NULL,
 		},
-		.rules = NULL,
+		.rules = r,
 		.terminals = NULL,
 		.variables = NULL,
 		.dynamic_tokens = NULL,
 		.start = NULL,
 	};
-	cvector(Token) reachable = NULL;
 	bool changed = true;
 
-	// Split by ';' and remove ','
-	// TOOD: Make this actually check for valid , placement. It just filters them out
-	while(true) {
-		Token current = lexer_get_token(a->l);
+	for(Rule *it1 = cvector_begin(result.rules); it1 != cvector_end(result.rules); it1 += 1) {
+		Rule nr = {
+			.identifier = it1->identifier,
+			.definition = NULL,
+		};
 
-		if(current.tag == TokenType_EOF) {
-			break;
-		}
+		cvector_copy(it1->definition, nr.definition);
 
-		if(current.tag == TokenType_Identifier) {
-			Rule new = { 
-				.identifier = current,
-				.definition = NULL,
-			};
-
-			if(lexer_get_token(a->l).tag != TokenType_Equal) {
-				// Error
-			}
-
-			do {
-				current = lexer_get_token(a->l);
-
-				if(current.tag == TokenType_Semicolon) {
-					break;
-				} else if(current.tag != TokenType_Comma) {
-					cvector_push_back(new.definition, current);
-				}
-
-			} while(current.tag != TokenType_EOF);
-
-			token_set_insert(&result.variables, new.identifier);
-			cvector_push_back(result.rules, new);
+		if(rule_has_any_cycle(result.rules, *it1)) {
+			cvector_push_back(result.original.non_terminal_rules, nr);
 		} else {
-			// Error
+			cvector_push_back(result.original.terminal_rules, nr);
 		}
 	}
 
-	for(Rule *rule_iterator1 = cvector_begin(result.rules); rule_iterator1 != cvector_end(result.rules); rule_iterator1 += 1) {
-		if(rule_has_any_cycle(result.rules, *rule_iterator1)) {
-			cvector_push_back(result.original.non_terminal_rules, *rule_iterator1);
-		} else {
-			cvector_push_back(result.original.terminal_rules, *rule_iterator1);
-		}
-	}
-
-	changed = true;
-
-	// Gather sub expressions
+	// Hoist sub expressions into their own rules
 	while(changed) {
 		changed = false;
 
@@ -121,7 +71,6 @@ Grammar analyzer_analyze(Analyzer *a) {
 					token_set_insert(&result.terminals, current_token);
 				} else if(current_token.tag == TokenType_Identifier) {
 					token_set_insert(&result.variables, current_token);
-					token_set_insert(&reachable, current_token);
 				} else if(current_token.tag == TokenType_RightBrace ||
 				   	  current_token.tag == TokenType_RightBracket ||
 					  current_token.tag == TokenType_RightParenthesis) {
@@ -160,7 +109,6 @@ Grammar analyzer_analyze(Analyzer *a) {
 
 					token_set_insert(&result.variables, new_identifier);
 					token_set_insert(&result.dynamic_tokens, new_identifier);
-					token_set_insert(&reachable, new_identifier);
 
 					Rule new_rule = {
 						.identifier = new_identifier,
@@ -204,7 +152,6 @@ Grammar analyzer_analyze(Analyzer *a) {
 	}
 
 	changed = true;
-
 
 	// Split rules by '|'
 	while(changed) {
@@ -277,22 +224,11 @@ Grammar analyzer_analyze(Analyzer *a) {
 
 	// Find start symbol
 	for(Rule *it1 = cvector_begin(result.rules); it1 != cvector_end(result.rules); it1 += 1) {
-		bool found = false;
-
-		for(Token *it2 = cvector_begin(reachable); it2 != cvector_end(reachable); it2 += 1) {
-			if(token_equals(it1->identifier, *it2)) {
-				found = true;
-				break;
-			}
-		}
-
-		if(found == false) {
+		if(!rule_referenced(result.rules, *it1)) {
 			result.start = it1;
 			break;
 		}
 	}
-
-	cvector_free(reachable);
 
 	return result;
 }
@@ -310,33 +246,33 @@ static void token_set_insert(cvector(Token) *set, Token t) {
 
 /* AI generated to find any cycle in a graph, pretty simple */
 // Internal helper function that checks for any cycle in the current path
-static bool rule_has_any_cycle_internal(cvector(Rule) rules, Rule *current_rule, cvector(Rule*) visited) {
+static bool rule_has_any_cycle_internal(cvector(Rule) rules, Rule *current_rule, cvector(Rule) *visited) {
     // 1. Check if the current rule is already in our active recursion stack
-    for (Rule **v_it = cvector_begin(visited); v_it != cvector_end(visited); v_it += 1) {
-        if (token_equals((*v_it)->identifier, current_rule->identifier)) {
+    for(Rule *it1 = cvector_begin(*visited); it1 != cvector_end(*visited); it1 += 1) {
+        if(token_equals((it1)->identifier, current_rule->identifier)) {
             return true; // Cycle detected! We've looped back to a rule we are already visiting.
         }
     }
 
     // 2. Add current rule to the active stack
-    cvector_push_back(visited, current_rule);
+    cvector_push_back(*visited, *current_rule);
 
     // 3. Iterate through all tokens in the current rule's definition
-    for (Token *token_iterator1 = cvector_begin(current_rule->definition); token_iterator1 != cvector_end(current_rule->definition); token_iterator1 += 1) {
-        if (token_iterator1->tag == TokenType_Identifier) {
+    for(Token *it1 = cvector_begin(current_rule->definition); it1 != cvector_end(current_rule->definition); it1 += 1) {
+        if(it1->tag == TokenType_Identifier) {
             
             // Find the next rule definition in the list matching the token identifier
             Rule *next_rule = NULL;
-            for (Rule *rule_iterator1 = cvector_begin(rules); rule_iterator1 != cvector_end(rules); rule_iterator1 += 1) {
-                if (token_equals(rule_iterator1->identifier, *token_iterator1)) {
-                    next_rule = rule_iterator1;
+            for(Rule *it2 = cvector_begin(rules); it2 != cvector_end(rules); it2 += 1) {
+                if(token_equals(it2->identifier, *it1)) {
+                    next_rule = it2;
                     break;
                 }
             }
 
             // Recurse into the next rule
-            if (next_rule != NULL) {
-                if (rule_has_any_cycle_internal(rules, next_rule, visited)) {
+            if(next_rule != NULL) {
+                if(rule_has_any_cycle_internal(rules, next_rule, visited)) {
                     // Do not pop here; bubble the true up to clean up at the top wrapper
                     return true; 
                 }
@@ -345,16 +281,31 @@ static bool rule_has_any_cycle_internal(cvector(Rule) rules, Rule *current_rule,
     }
 
     // 4. Pop the current rule off the stack as we backtrack (this path is clear)
-    cvector_pop_back(visited);
+    cvector_pop_back(*visited);
+
     return false;
 }
 
 // Public wrapper function
 static bool rule_has_any_cycle(cvector(Rule) rules, Rule start_rule) {
-    cvector(Rule*) visited = NULL; 
-    
-    bool has_cycle = rule_has_any_cycle_internal(rules, &start_rule, visited);
+    cvector(Rule) visited = NULL; 
+    bool has_cycle = rule_has_any_cycle_internal(rules, &start_rule, &visited);
     
     cvector_free(visited);
+
     return has_cycle;
+}
+
+static bool rule_referenced(cvector(Rule) rules, Rule target) {
+	for(Rule *it1 = cvector_begin(rules); it1 != cvector_end(rules); it1 += 1) {
+		for(Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
+			if(it2->tag == TokenType_Identifier) {
+				if(token_equals(*it2, target.identifier)) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }

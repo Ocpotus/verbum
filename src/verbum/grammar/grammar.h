@@ -3,14 +3,9 @@
 
 #include "../../lib/c-vector/cvector.h"
 
-//#include "../parser"
 #include "../token/token.h"
+#include "../rule/rule.h"
 
-
-typedef struct Rule {
-	Token identifier;
-	cvector(Token) definition;
-} Rule;
 
 typedef struct Grammar {
 	struct {

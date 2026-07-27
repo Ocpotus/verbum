@@ -6,16 +6,10 @@
 #include "../token/token.h"
 #include "../lexer/lexer.h"
 #include "../grammar/grammar.h"
+#include "../rule/rule.h"
 
 
-typedef struct Analyzer Analyzer;
-
-
-Analyzer *analyzer_new(Lexer *l);
-
-void analyzer_delete(Analyzer *a);
-
-Grammar analyzer_analyze(Analyzer *a);
+Grammar analyzer_analyze(cvector(Rule) rules);
 
 
 #endif

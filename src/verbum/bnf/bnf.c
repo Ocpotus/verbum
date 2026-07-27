@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "../rule/rule.h"
 #include "../grammar/grammar.h"
 #include "../token/token.h"
 

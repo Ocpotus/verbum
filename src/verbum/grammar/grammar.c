@@ -14,7 +14,17 @@ void grammar_delete(Grammar *g) {
 	}
 
 	cvector_free(g->original.rules);
+
+	for(Rule *it1 = cvector_begin(g->original.non_terminal_rules); it1 != cvector_end(g->original.non_terminal_rules); it1 += 1) {
+		cvector_free(it1->definition);
+	}
+
 	cvector_free(g->original.non_terminal_rules);
+
+	for(Rule *it1 = cvector_begin(g->original.terminal_rules); it1 != cvector_end(g->original.terminal_rules); it1 += 1) {
+		cvector_free(it1->definition);
+	}
+	
 	cvector_free(g->original.terminal_rules);
 	cvector_free(g->rules);
 	cvector_free(g->terminals);

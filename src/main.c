@@ -14,25 +14,12 @@
 
 int main() {
 	srand(time(NULL));
-
-	Lexer *l = lexer_new("test/ebnf.ebnf");
+	Lexer *l = lexer_new("test/rust.ebnf");
 	cvector(Rule) rules = verbum_parse(l);
-
-	//Analyzer *a = analyzer_new(l);
 	Grammar g = analyzer_analyze(rules);
-/*
-	for(Rule *it1 = cvector_begin(g.original.non_terminal_rules); it1 != cvector_end(g.original.non_terminal_rules); it1 += 1) {
-		printf("NONTERMINAL: %.*s\n", (int) it1->identifier.lexeme.length, it1->identifier.lexeme.data);
-
-	}
-	for(Rule *it1 = cvector_begin(g.original.terminal_rules); it1 != cvector_end(g.original.terminal_rules); it1 += 1) {
-		printf("TERMINAL: %.*s\n", (int) it1->identifier.lexeme.length, it1->identifier.lexeme.data);
-	}
-*/
-	//analyzer_analyze(rules);
-	//generate(g);
-
 	LR0 lr0 = lr0_new(g);
+
+	//lalr_construct(g, lr0);
 
 	printf("@start: %.*s\n", (int) g.start->identifier.lexeme.length, g.start->identifier.lexeme.data);
 
@@ -59,24 +46,11 @@ int main() {
 			for(Token *it3 = cvector_begin(it2->lookaheads); it3 != cvector_end(it2->lookaheads); it3 += 1) {
 				printf(" %.*s", (int) it3->lexeme.length, it3->lexeme.data);
 			}
-			printf(" }");
 
+			printf(" }");
 			printf("\n");
 		}
 	}
-
-	/* for(Transition *it1 = cvector_begin(lr0.transitions); it1 != cvector_end(lr0.transitions); it1 += 1) {
-		printf("δ(s%zu, %.*s) = s%zu\n", it1->source_index, (int) it1->symbol.lexeme.length,
-		       				 it1->symbol.lexeme.data, it1->destination_index);
-		printf("Direct Reads:");
-
-		for(Token *it2 = cvector_begin(it1->direct_reads); it2 != cvector_end(it1->direct_reads); it2 += 1) {
-			printf(" %.*s", (int) it2->lexeme.length, it2->lexeme.data);
-		}
-
-		printf("\n");
-	} */
-	//lalr_construct(g, lr0);
 
 	lexer_delete(l);
 	grammar_delete(&g);

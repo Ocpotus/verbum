@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <stdbool.h>
 #include <stdio.h>
 #include <ctype.h>

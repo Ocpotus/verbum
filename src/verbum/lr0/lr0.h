@@ -4,34 +4,33 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../grammar/grammar.h"
+#include "../token_set/token_set.h"
 
 
-typedef struct Item {
+typedef struct LR0Item {
 	Rule rule;
 	size_t dot_pos;
-	cvector(Token) lookaheads;
-} Item;
+} LR0Item;
 
-typedef struct State {
-	cvector(Item) items;
-} State;
+typedef struct LR0State {
+	cvector(LR0Item) items;
+} LR0State;
 
-typedef struct Transition {
+typedef struct LR0Transition {
 	size_t id;
 	size_t source_index;
 	size_t destination_index;
-	cvector(Token) direct_reads;
 	Token symbol;
-} Transition;
+} LR0Transition;
 
-typedef struct LR0 {
-	cvector(Transition) transitions;
-	cvector(State) states;
-} LR0;
+typedef struct LR0Parser {
+	cvector(LR0Transition) transitions;
+	cvector(LR0State) states;
+} LR0Parser;
 
-LR0 lr0_new(Grammar g);
+LR0Parser lr0_new(Grammar g);
 
-void lr0_delete(LR0 lr0);
+void lr0_delete(LR0Parser lr0);
 
 
 #endif

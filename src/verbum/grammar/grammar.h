@@ -3,20 +3,32 @@
 
 #include "../../lib/c-vector/cvector.h"
 
-#include "../token/token.h"
+#include "../token_set/token_set.h"
 #include "../rule/rule.h"
 
 
+/* Grammar
+ * 
+ * Stores all necessary aspects of a formal language
+ *
+ * MEMBERS:
+ * 	dynamic_tokens: this is for memory keeping and will
+ * 			contain all dynamically constructed identifiers
+ * 	rules: instructions on how to substitute non-terminals/variables
+ * 	terminals: any token that cannot be substitute
+ * 	variables: any token that can be substituted
+ * 	start: the start symbol/entry point for a language
+ *
+ * NOTES:
+ * 	repetition, optional, and group expressions are encoded into the
+ * 	name of the rule with an @ followed by r, o, or g
+ */
 typedef struct Grammar {
-	struct {
-		cvector(Rule) rules;
-		cvector(Rule) terminal_rules;
-		cvector(Rule) non_terminal_rules;
-	} original;
+	TokenSet dynamic_tokens;
+
 	cvector(Rule) rules;
-	cvector(Token) terminals;
-	cvector(Token) variables;
-	cvector(Token) dynamic_tokens;
+	TokenSet terminals;
+	TokenSet variables;
 	Rule *start;
 } Grammar;
 

@@ -6,33 +6,55 @@
 
 #include "../grammar/grammar.h"
 #include "../token/token.h"
+#include "../token_set/token_set.h"
 
 #include "lr0.h"
 
 
-static void item_delete(Item *i);
-static void state_delete(State *s);
-static bool state_contains(State s, Item i);
-static bool state_equals(State a, State b);
-static void lr0_closure(Grammar g, State *s);
-static State lr0_goto(Grammar g, State *s, Token t);
-static bool token_set_contains(cvector(Token) set, Token t);
-static void token_set_insert(cvector(Token) *set, Token t);
+/* lr0_closure
+ *
+ * Computes implicit items in a State.
+ * In short if an Item has a dot preceding a nonterminal/variable it gathers all
+ * Rules with that nonterminal as the identifier.
+ *
+ * PARAMETERS:
+ * 	g: grammar to act on
+ * 	s: current state
+ *
+ *
+ */
+static void lr0_closure(Grammar g, LR0State *s);
+/* lr0_goto
+ *
+ * Computes the next state if a token is consumed.
+ *
+ * PARAMETERS:
+ * 	g: the grammar to act on
+ * 	s: the current state
+ * 	t: the token used to determine the next state
+ *
+ * RETURNS:
+ * 	a newly constructed state
+ */
+static LR0State lr0_goto(Grammar g, LR0State *s, Token t);
+
+static void item_delete(LR0Item *i);
+static void state_delete(LR0State *s);
+static bool state_contains(LR0State s, LR0Item i);
+static bool state_equals(LR0State a, LR0State b);
 
 
-
-LR0 lr0_new(Grammar g) {
-	LR0 result = {
+LR0Parser lr0_new(Grammar g) {
+	LR0Parser result = {
 		.states = NULL,
 		.transitions = NULL,
 	};
-	State s0 = {
+	LR0State s0 = {
 		.items = NULL,
 	};
-	Item i0 = {
+	LR0Item i0 = {
 		.dot_pos = 0,
 		.rule = *g.start,
-		.lookaheads = NULL,
 	};
 	cvector(Token) tokens = NULL;
 	size_t transition_id = 0;
@@ -53,12 +75,12 @@ LR0 lr0_new(Grammar g) {
 	// Compute all the states and transitions
 	for(size_t i = 0; i < cvector_size(result.states); i += 1) {
 		for(Token *it1 = cvector_begin(tokens); it1 < cvector_end(tokens); it1 += 1) {
-			State *source = &result.states[i];
-			State ns = lr0_goto(g, source, *it1);
+			LR0State *source = &result.states[i];
+			LR0State ns = lr0_goto(g, source, *it1);
 
 			if(cvector_size(ns.items) > 0) {
 				bool found = false;
-				Transition t = { 0 };
+				LR0Transition t = { 0 };
 				size_t destination_index = 0;
 
 				for(size_t j = 0; j < cvector_size(result.states); j += 1) {
@@ -75,11 +97,10 @@ LR0 lr0_new(Grammar g) {
 					cvector_free(ns.items);
 				}
 
-				t = (Transition) {
+				t = (LR0Transition) {
 					.id = transition_id,
 					.source_index = i,
 					.destination_index = destination_index,
-					.direct_reads = NULL,
 					.symbol = *it1,
 				};
 				transition_id += 1;
@@ -93,40 +114,33 @@ LR0 lr0_new(Grammar g) {
 	return result;
 }
 
-void lr0_delete(LR0 lr0) {
-	for(State *it1 = cvector_begin(lr0.states); it1 != cvector_end(lr0.states); it1 += 1) {
-		for(Item *it2 = cvector_begin(it1->items); it2 != cvector_end(it1->items); it2 += 1) {
-			cvector_free(it2->lookaheads);
-		}
-
-		cvector_free(it1->items);
-	}
-
-	for(Transition *it1 = cvector_begin(lr0.transitions); it1 != cvector_end(lr0.transitions); it1 += 1) {
-		cvector_free(it1->direct_reads);
+void lr0_delete(LR0Parser lr0) {
+	for(LR0State *it1 = cvector_begin(lr0.states); it1 != cvector_end(lr0.states); it1 += 1) {
+		state_delete(it1);
 	}
 
 	cvector_free(lr0.states);
 	cvector_free(lr0.transitions);
 }
 
-static void lr0_closure(Grammar g, State *s) {
+static void lr0_closure(Grammar g, LR0State *s) {
 	for(size_t i = 0; i < cvector_size(s->items); i += 1) {
-		Item item = s->items[i];
+		LR0Item item = s->items[i];
 		
+		// Already at end of definition skip
 		if(item.dot_pos >= cvector_size(item.rule.definition)) {
 			continue;
 		}
 
 		Token token = item.rule.definition[item.dot_pos];
 
+		// Nonterminal/variable is next add all items with dot_pos == 0
 		if(token.tag == TokenType_Identifier) {
 			for(size_t j = 0; j < cvector_size(g.rules); j += 1) {
 				if(token_equals(token, g.rules[j].identifier)) {
-					Item ni = {
+					LR0Item ni = {
 						.rule = g.rules[j],
 						.dot_pos = 0, 
-						.lookaheads = NULL,
 					};
 
 					if(!state_contains(*s, ni)) {
@@ -138,19 +152,19 @@ static void lr0_closure(Grammar g, State *s) {
 	}
 }
 
-static State lr0_goto(Grammar g, State *s, Token t) {
-	State result = {
+static LR0State lr0_goto(Grammar g, LR0State *s, Token t) {
+	LR0State result = {
 		.items = NULL
 	};
 
 	for(size_t i = 0; i < cvector_size(s->items); i += 1) {
-		Item current = s->items[i];
+		LR0Item current = s->items[i];
 
 		if(current.dot_pos < cvector_size(current.rule.definition)) {
 			Token nt = current.rule.definition[current.dot_pos];
 
 			if(token_equals(t, nt)) {
-				Item ni = {
+				LR0Item ni = {
 					.dot_pos = current.dot_pos + 1,
 					.rule = current.rule,
 				};
@@ -168,7 +182,7 @@ static State lr0_goto(Grammar g, State *s, Token t) {
 }
 
 /* Helper functions */
-static bool item_equals(Item a, Item b) {
+static bool item_equals(LR0Item a, LR0Item b) {
 	if(a.dot_pos != b.dot_pos) {
 		return false;
 	}
@@ -190,7 +204,7 @@ static bool item_equals(Item a, Item b) {
 	return true;
 }
 
-static void item_delete(Item *i) {
+static void item_delete(LR0Item *i) {
 	token_delete(i->rule.identifier);
 
 	for(Token *it1 = cvector_begin(i->rule.definition); it1 != cvector_end(i->rule.definition); it1 += 1) {
@@ -198,14 +212,12 @@ static void item_delete(Item *i) {
 	}
 }
 
-static void state_delete(State *s) {
-	for(Item *it1 = cvector_begin(s->items); it1 != cvector_end(s->items); it1 += 1) {
-		item_delete(it1);
-	}
+static void state_delete(LR0State *s) {
+	cvector_free(s->items);
 }
 
-static bool state_contains(State s, Item i) {
-	for(Item *it = cvector_begin(s.items); it != cvector_end(s.items); it += 1) {
+static bool state_contains(LR0State s, LR0Item i) {
+	for(LR0Item *it = cvector_begin(s.items); it != cvector_end(s.items); it += 1) {
 		if(item_equals(*it, i)) {
 			return true;
 		}
@@ -214,7 +226,7 @@ static bool state_contains(State s, Item i) {
 	return false;
 }
 
-static bool state_equals(State a, State b) {
+static bool state_equals(LR0State a, LR0State b) {
 	if(cvector_size(a.items) != cvector_size(b.items)) {
 		return false;
 	}
@@ -227,24 +239,4 @@ static bool state_equals(State a, State b) {
 	}
 
 	return true;
-}
-
-static bool token_set_contains(cvector(Token) set, Token t) {
-	for(Token *it1 = cvector_begin(set); it1 != cvector_end(set); it1 += 1) {
-		if(token_equals(*it1, t)) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static void token_set_insert(cvector(Token) *set, Token t) {
-	for(Token *it = cvector_begin(*set); it != cvector_end(*set); it += 1) {
-		if(token_equals(*it, t)) {
-			return;
-		}
-	}
-
-	cvector_push_back(*set, t);
 }

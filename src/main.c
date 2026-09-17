@@ -6,27 +6,24 @@
 #include "verbum/token/token.h"
 #include "verbum/analyzer/analyzer.h"
 #include "verbum/lr0/lr0.h"
-#include "verbum/generate/generate.h"
-#include "verbum/lalr/lalr.h"
-#include "verbum/bnf/bnf.h"
 #include "verbum/parse/parse.h"
+#include "verbum/table/table.h"
+#include "verbum/parser/parser.h"
 
 
 int main() {
 	srand(time(NULL));
-	Lexer *l = lexer_new("test/rust.ebnf");
-	cvector(Rule) rules = verbum_parse(l);
-	Grammar g = analyzer_analyze(rules);
-	LR0 lr0 = lr0_new(g);
+	Lexer *lexer = lexer_new("test/c2.ebnf");
+	cvector(Rule) rules = verbum_parse(lexer);
+	Grammar grammar = analyzer_analyze(rules);
+	LR0Parser lr0 = lr0_new(grammar);
 
-	//lalr_construct(g, lr0);
+	printf("@start: %.*s\n", (int) grammar.start->identifier.lexeme.length, grammar.start->identifier.lexeme.data);
 
-	printf("@start: %.*s\n", (int) g.start->identifier.lexeme.length, g.start->identifier.lexeme.data);
-
-	for(State *it1 = cvector_begin(lr0.states); it1 != cvector_end(lr0.states); it1 += 1) {
+	for(LR0State *it1 = cvector_begin(lr0.states); it1 != cvector_end(lr0.states); it1 += 1) {
 		printf("s%zu:\n", it1 - cvector_begin(lr0.states));
 
-		for(Item *it2 = cvector_begin(it1->items); it2 != cvector_end(it1->items); it2 += 1) {
+		for(LR0Item *it2 = cvector_begin(it1->items); it2 != cvector_end(it1->items); it2 += 1) {
 			printf("\t%.*s -> ", (int) it2->rule.identifier.lexeme.length, it2->rule.identifier.lexeme.data);
 
 			for(Token *it3 = cvector_begin(it2->rule.definition); it3 != cvector_end(it2->rule.definition); it3 += 1) {
@@ -42,40 +39,22 @@ int main() {
 			}
 
 			printf(" {");
-
-			for(Token *it3 = cvector_begin(it2->lookaheads); it3 != cvector_end(it2->lookaheads); it3 += 1) {
-				printf(" %.*s", (int) it3->lexeme.length, it3->lexeme.data);
-			}
-
 			printf(" }");
 			printf("\n");
 		}
 	}
 
-	lexer_delete(l);
-	grammar_delete(&g);
-	lr0_delete(lr0);
-	//LR0 lr0 = lr0_new(g);
+	char *input = "hello world";
+	Table table = table_new(cvector_size(lr0.states), cvector_size(grammar.terminals) + 1, cvector_size(grammar.variables));
+	Parser p = parser_new(table);
 
-	// bnf_print(g);
-	//lalr_construct(g, lr0);
-	//lr0_delete(lr0);
+	parser_parse(&p, input);
+
+	lexer_delete(lexer);
+	grammar_delete(&grammar);
+	table_delete(&table);
+
 	//analyzer_delete(a);
-
-	/* Lexer *l = lexer_new("test/ebnf.ebnf");
-	Token t = { 0 };
-
-	while(true) {
-		t = lexer_get_token(l);
-
-		if(t.tag == TokenType_EOF) {
-			break;
-		}
-
-		printf("LENGTH: %zu ; DATA: %.*s\n", t.lexeme.length, (int)t.lexeme.length, t.lexeme.data);
-	}
-
-	lexer_delete(l); */
 
 	return 0;
 }

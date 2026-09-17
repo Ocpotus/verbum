@@ -27,7 +27,7 @@ typedef struct LookbackLink {
 	int state_index;
 	int transition_index;
 } LookbackLink;
-
+/*
 static bool token_set_contains(cvector(Token) set, Token t);
 static void token_set_insert(cvector(Token) *set, Token t);
 static bool variable_info_set_contains(cvector(VariableInfo) set, VariableInfo vi);
@@ -500,4 +500,4 @@ static int trace_transition_path(cvector(Transition) transitions, int start_stat
 	}
 
 	return current_state;
-}
+} */

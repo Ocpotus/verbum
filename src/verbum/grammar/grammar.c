@@ -3,6 +3,7 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../token/token.h"
+#include "../token_set/token_set.h"
 #include "../rule/rule.h"
 
 #include "grammar.h"
@@ -13,26 +14,13 @@ void grammar_delete(Grammar *g) {
 		rule_delete(*it);
 	}
 
-	cvector_free(g->original.rules);
-
-	for(Rule *it1 = cvector_begin(g->original.non_terminal_rules); it1 != cvector_end(g->original.non_terminal_rules); it1 += 1) {
-		cvector_free(it1->definition);
-	}
-
-	cvector_free(g->original.non_terminal_rules);
-
-	for(Rule *it1 = cvector_begin(g->original.terminal_rules); it1 != cvector_end(g->original.terminal_rules); it1 += 1) {
-		cvector_free(it1->definition);
-	}
-	
-	cvector_free(g->original.terminal_rules);
 	cvector_free(g->rules);
-	cvector_free(g->terminals);
-	cvector_free(g->variables);
+	token_set_delete(g->terminals);
+	token_set_delete(g->variables);
 
 	for(Token *it1 = cvector_begin(g->dynamic_tokens); it1 != cvector_end(g->dynamic_tokens); it1 += 1) {
 		token_delete(*it1);
 	}
 
-	cvector_free(g->dynamic_tokens);
+	token_set_delete(g->dynamic_tokens);
 }

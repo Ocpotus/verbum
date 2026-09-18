@@ -10,12 +10,15 @@
 
 typedef struct Parser {
 	char *input;
-	Table table;
-	cvector(Token) stack;
+	ParseTable table;
+	struct {
+		size_t top;
+		cvector(Token) data;
+	} stack;
 } Parser;
 
 
-Parser parser_new(Table t);
+Parser parser_new(ParseTable t);
 void parser_parse(Parser *p, char *input);
 
 

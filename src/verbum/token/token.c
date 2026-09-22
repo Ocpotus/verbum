@@ -1,7 +1,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "../memory/memory.h"
+#include "../lexeme/lexeme.h"
 
 #include "token.h"
 
@@ -10,7 +10,7 @@ void token_delete(Token t) {
 	if(t.tag == TokenType_Double_Literal ||
 	   t.tag == TokenType_Single_Literal ||
 	   t.tag == TokenType_Identifier) {
-		memory_delete((void *)t.lexeme.data);
+		lexeme_delete(t.lexeme);
 	}
 }
 

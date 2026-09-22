@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "../lexeme/lexeme.h"
+
+
 /* Operator charset */
 #define OPERATOR_CHARS "=|[]{}(),;-"
 /* Invalid charset */
@@ -22,10 +25,6 @@
 #define IDENTIFIER_CHARS LETTER_CHARS DIGIT_CHARS "_"
 
 
-/* Simple alias for const char * */
-//typedef const char *Lexeme;
-
-/* Possible Token types of the C programming language */
 typedef enum TokenType {
         TokenType_Invalid = -2,
         TokenType_EOF = -1, // EOF
@@ -52,10 +51,7 @@ typedef enum TokenType {
 	TokenType_Semicolon, // ;
 } TokenType;
 
-typedef struct Lexeme {
-	const char *data;
-	size_t length;
-} Lexeme;
+
 /* Token
  *
  * MEMBERS:
@@ -73,6 +69,7 @@ typedef struct Token {
 		uint32_t col;
 	} pos;
 } Token;
+
 /* Deletes a Token
  *
  * PARAMETERS:

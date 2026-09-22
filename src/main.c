@@ -45,14 +45,14 @@ int main() {
 	}
 
 	char *input = "hello world";
-	Table table = table_new(cvector_size(lr0.states), cvector_size(grammar.terminals) + 1, cvector_size(grammar.variables));
+	ParseTable table = parse_table_new(cvector_size(lr0.states), cvector_size(grammar.terminals) + 1, cvector_size(grammar.variables));
 	Parser p = parser_new(table);
 
 	parser_parse(&p, input);
 
 	lexer_delete(lexer);
 	grammar_delete(&grammar);
-	table_delete(&table);
+	parse_table_delete(&table);
 
 	//analyzer_delete(a);
 

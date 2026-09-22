@@ -7,5 +7,4 @@
 void bnf_print(Grammar g);
 
 
-
 #endif

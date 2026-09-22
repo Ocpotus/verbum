@@ -4,7 +4,6 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../grammar/grammar.h"
-#include "../token_set/token_set.h"
 
 
 typedef struct LR0Item {

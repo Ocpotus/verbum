@@ -1,6 +1,7 @@
 #include "../token/token.h"
 #include "parser.h"
 
+/*
 Parser parser_new(ParseTable t) {
     Parser p;
     p.input = NULL;
@@ -70,3 +71,4 @@ void parser_parse(Parser *p, char *input) {
         }
     }
 }
+*/

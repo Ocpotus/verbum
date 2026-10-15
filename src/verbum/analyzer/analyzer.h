@@ -5,11 +5,13 @@
 
 #include "../grammar/grammar.h"
 #include "../rule/rule.h"
+#include "../rule_set/rule_set.h"
 
 
 /* Constructs a grammar from a vector of rules
  */
-Grammar analyzer_analyze(cvector(Rule) rules);
+Grammar analyzer_analyze(RuleSet rules);
+//kGrammar analyzer_analyze(cvector(Rule) rules);
 
 
 #endif

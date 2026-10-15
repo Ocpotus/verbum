@@ -27,5 +27,10 @@ bool token_equals(Token a, Token b) {
 		return false;
 	}
 
+	// What else could it be?
+	if(a.lexeme.data == b.lexeme.data) {
+		return true;
+	}
+
 	return strncmp(a.lexeme.data, b.lexeme.data, a.lexeme.length) == 0;
 }

@@ -1,12 +1,14 @@
 #include <stdio.h>
 
 #include "../rule/rule.h"
+#include "../rule_set/rule_set.h"
 #include "../grammar/grammar.h"
 
 #include "bnf.h"
 
 
 void bnf_print(Grammar g) {
+	/* rule_set_iterate(g.rules, name, ...)
 	for(Rule *it = cvector_begin(g.rules); it != cvector_end(g.rules); it += 1) {
 		if(it->identifier.lexeme.data != NULL) {
 			printf("<%.*s> ::=", (int) it->identifier.lexeme.length, it->identifier.lexeme.data);
@@ -33,5 +35,5 @@ void bnf_print(Grammar g) {
 		}
 
 		printf("\n");
-	}
+	} */
 }

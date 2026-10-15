@@ -3,9 +3,9 @@
 
 #include <stdbool.h>
 
-#include "../../lib/c-vector/cvector.h"
-
 #include "../token/token.h"
+
+#include "../definition/definition.h"
 
 
 /* Rule
@@ -18,7 +18,7 @@
  */
 typedef struct Rule {
 	Token identifier;
-	cvector(Token) definition;
+	Definition definition;
 	bool nullable;
 } Rule;
 

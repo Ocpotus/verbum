@@ -3,13 +3,12 @@
 
 #include <stdbool.h>
 
-#include "../../lib/c-vector/cvector.h"
+#include "../../lib/hashmap.c/hashmap.h"
 
 #include "../token/token.h"
 
 
-typedef cvector(Token) TokenSet;
-
+typedef struct hashmap *TokenSet;
 
 /* token_set_new
  *
@@ -51,6 +50,28 @@ bool token_set_contains(TokenSet set, Token t);
  * 	true if inserted, false if not
  */
 bool token_set_insert(TokenSet *set, Token t);
+
+
+/* token_set_iterate
+ *
+ * Macro for clean iteration. It exists purely to avoid using hashmap_iter because it would polute
+ * the code with iters, and datas.
+ *
+ *
+ * PARAMETERS:
+ * 	set: TokenSet
+ * 	name: name of the iterator
+ */
+#define token_set_iterate(set, name, ...) \
+do {\
+	size_t token_set_iterate_iter = 0; \
+	void *token_set_iterate_data; \
+	while(hashmap_iter(set, &token_set_iterate_iter, &token_set_iterate_data)) {\
+		const Token *name = token_set_iterate_data;\
+		__VA_ARGS__ \
+	}\
+\
+} while(0)
 
 
 #endif

@@ -1,16 +1,14 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../lexer/lexer.h"
-#include "../rule/rule.h"
+//#include "../rule/rule.h"
 
 #include "parse.h"
 
 
-cvector(Rule) verbum_parse(Lexer *l) {
-	cvector(Rule) result = NULL;
+RuleSet verbum_parse(Lexer *l) {
+	RuleSet result = rule_set_new();
 
-	// Split by ';' and remove ','
-	// TOOD: Make this actually check for valid , placement. It just filters them out
 	while(true) {
 		Token current = lexer_get_token(l);
 
@@ -19,10 +17,8 @@ cvector(Rule) verbum_parse(Lexer *l) {
 		}
 
 		if(current.tag == TokenType_Identifier) {
-			Rule new = { 
-				.identifier = current,
-				.definition = NULL,
-			};
+			Token identifier = current;
+			Definition definition = definition_new();
 
 			if(lexer_get_token(l).tag != TokenType_Equal) {
 				// Error
@@ -34,13 +30,11 @@ cvector(Rule) verbum_parse(Lexer *l) {
 				if(current.tag == TokenType_Semicolon) {
 					break;
 				} else if(current.tag != TokenType_Comma) {
-					cvector_push_back(new.definition, current);
+					cvector_push_back(definition, current);
 				}
-
 			} while(current.tag != TokenType_EOF);
 
-			//token_set_insert(&result.variables, new.identifier);
-			cvector_push_back(result, new);
+			rule_set_insert(&result, identifier, definition, false);
 		} else {
 			// Error
 		}

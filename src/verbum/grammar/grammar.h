@@ -5,6 +5,7 @@
 
 #include "../token_set/token_set.h"
 #include "../rule/rule.h"
+#include "../rule_set/rule_set.h"
 
 
 /* Grammar
@@ -26,11 +27,13 @@
 typedef struct Grammar {
 	TokenSet dynamic_tokens;
 
-	cvector(Rule) rules;
+	RuleSet rules;
 	TokenSet terminals;
 	TokenSet variables;
-	Rule *start;
+	const RuleSetEntry *start;
 } Grammar;
+
+Grammar grammar_new();
 
 void grammar_delete(Grammar *g);
 

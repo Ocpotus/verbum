@@ -5,9 +5,11 @@
 
 #include "../lexer/lexer.h"
 #include "../rule/rule.h"
+#include "../rule_set/rule_set.h"
 
 
-cvector(Rule) verbum_parse(Lexer *l);
+RuleSet verbum_parse(Lexer *l);
+//cvector(Rule) verbum_parse(Lexer *l);
 
 
 #endif

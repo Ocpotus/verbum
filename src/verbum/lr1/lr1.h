@@ -29,7 +29,7 @@ typedef struct LR1Parser {
 	cvector(LR1State) states;
 } LR1Parser;
 
-LR1Parser lr1_new(Grammar g);
+LR1Parser lr1_new(Grammar g, LR0Parser lr0);
 
 void lr1_delete(LR1Parser lr1);
 

@@ -31,25 +31,35 @@ typedef enum ParseTableActionType {
 
 /* ParseTableAction
  *
- * MEMBERS:
- * 	shift:
- * 		destination: where to go
- * 	reduce:
- * 		destination: where to go
+ * Bitmask representing the possible states an action can be
  *
- * 	tag: type of ParseTableAction
+ * If action > 0 it is a shift else a reduce.
+ * If action is INT32_MIN it is an error state.
+ * If action is INT32_MAX it is an accept state.
+ * 
  */
-typedef struct ParseTableAction {
-	union {
-		struct {
-			size_t destination;
-		} shift;
-		struct {
-			size_t destination;
-		} reduce;
-	};
-	ParseTableActionType tag;
-} ParseTableAction;
+typedef int32_t ParseTableAction;
+static const int32_t ActionError = INT32_MIN;
+static const int32_t ActionAccept = INT32_MAX;
+
+/* Returns the action type
+ *
+ */
+inline ParseTableActionType parse_table_action_type(ParseTableAction action) {
+	if(action < 0) {
+		if(action == ActionError) {
+			return ParseTableActionType_Error;
+		}
+
+		return ParseTableActionType_Reduce;
+	} else {
+		if(action == ActionAccept) {
+			return ParseTableActionType_Accept;
+		}
+
+		return ParseTableActionType_Shift;
+	}
+}
 
 /* ParseTable
  * 	The ParseTable contains all the combinations that a parser can be in

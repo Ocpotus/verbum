@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include "../../lib/log.c/log.h"
 #include "../../lib/c-vector/cvector.h"
 
 #include "../grammar/grammar.h"
@@ -36,7 +37,7 @@ static void lr0_closure(Grammar g, LR0State *s);
  * RETURNS:
  * 	a newly constructed state
  */
-static LR0State lr0_goto(Grammar g, LR0State *s, Token t);
+/* static LR0State lr0_goto(Grammar g, LR0State *s, Token t);
 
 static void item_delete(LR0Item *i);
 static void state_delete(LR0State *s);
@@ -45,6 +46,7 @@ static bool state_equals(LR0State a, LR0State b);
 
 
 LR0Parser lr0_new(Grammar g) {
+	log_debug("Entering %s", __FUNCTION__);
 	LR0Parser result = {
 		.states = NULL,
 		.transitions = NULL,
@@ -61,21 +63,25 @@ LR0Parser lr0_new(Grammar g) {
 
 	cvector_push_back(s0.items, i0);
 
-	for(Token *it = cvector_begin(g.terminals); it != cvector_end(g.terminals); it += 1) {
-		token_set_insert(&tokens, *it);
-	}
+	token_set_iterate(g.terminals, it1, 
+		cvector_push_back(tokens, *it1);
+		//token_set_insert(&tokens, *it1);
+	);
 
-	for(Token *it = cvector_begin(g.variables); it != cvector_end(g.variables); it += 1) {
-		token_set_insert(&tokens, *it);
-	}
+	token_set_iterate(g.terminals, it1, 
+		cvector_push_back(tokens, *it1);
+		//token_set_insert(&tokens, *it1);
+	);
 
 	lr0_closure(g, &s0);
 	cvector_push_back(result.states, s0);
 
 	// Compute all the states and transitions
 	for(size_t i = 0; i < cvector_size(result.states); i += 1) {
-		for(Token *it1 = cvector_begin(tokens); it1 < cvector_end(tokens); it1 += 1) {
+		for(Token *it1 = cvector_begin(tokens); it1 != cvector_end(tokens); it1 += 1) {
+		//token_set_iterate(tokens, it1,
 			LR0State *source = &result.states[i];
+			printf("Computing goto for: %.*s\n", (int) it1->lexeme.length, it1->lexeme.data);
 			LR0State ns = lr0_goto(g, source, *it1);
 
 			if(cvector_size(ns.items) > 0) {
@@ -106,10 +112,13 @@ LR0Parser lr0_new(Grammar g) {
 				transition_id += 1;
 				cvector_push_back(result.transitions, t);
 			}
+		//);
 		}
 	}
 
+	//token_set_delete(tokens);
 	cvector_free(tokens);
+	log_debug("EXITING %s", __FUNCTION__);
 
 	return result;
 }
@@ -124,6 +133,7 @@ void lr0_delete(LR0Parser lr0) {
 }
 
 static void lr0_closure(Grammar g, LR0State *s) {
+	log_debug("COMPUTING %s for %p", __FUNCTION__, s);
 	for(size_t i = 0; i < cvector_size(s->items); i += 1) {
 		LR0Item item = s->items[i];
 		
@@ -153,6 +163,7 @@ static void lr0_closure(Grammar g, LR0State *s) {
 }
 
 static LR0State lr0_goto(Grammar g, LR0State *s, Token t) {
+	log_debug("COMPUTING %s for %p", __FUNCTION__, s);
 	LR0State result = {
 		.items = NULL
 	};
@@ -181,17 +192,17 @@ static LR0State lr0_goto(Grammar g, LR0State *s, Token t) {
 	return result;
 }
 
-/* Helper functions */
+// Helper functions
 static bool item_equals(LR0Item a, LR0Item b) {
 	if(a.dot_pos != b.dot_pos) {
 		return false;
 	}
 
-	if(!token_equals(a.rule.identifier, b.rule.identifier)) {
+	if(cvector_size(a.rule.definition) != cvector_size(b.rule.definition)) {
 		return false;
 	}
 
-	if(cvector_size(a.rule.definition) != cvector_size(b.rule.definition)) {
+	if(!token_equals(a.rule.identifier, b.rule.identifier)) {
 		return false;
 	}
 
@@ -239,4 +250,4 @@ static bool state_equals(LR0State a, LR0State b) {
 	}
 
 	return true;
-}
+} */

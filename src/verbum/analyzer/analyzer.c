@@ -7,24 +7,218 @@
 #include "../memory/memory.h"
 #include "../token/token.h"
 #include "../token_set/token_set.h"
-#include "../rule/rule.h"
+//#include "../rule/rule.h"
 #include "../grammar/grammar.h"
+#include "../rule_set/rule_set.h"
 
 #include "analyzer.h"
 
 
-static bool rule_referenced(cvector(Rule) rules, Rule target);
+static bool rule_referenced(RuleSet rules, RuleSetEntry target);
 
-Grammar analyzer_analyze(cvector(Rule) r) {
-	Grammar result = { 
-		.rules = r,
-		.terminals = NULL,
-		.variables = NULL,
-		.dynamic_tokens = NULL,
-		.start = NULL,
+static Definition hoist(Grammar *g, Definition d, size_t *position, Token sub_end_token);
+static cvector(Definition) split(RuleSetEntry *rule);
+
+typedef enum SubExpressionType {
+	SubExpressionType_Grouping,
+	SubExpressionType_Repetition,
+	SubExpressionType_Optional,
+} SubExpressionType;
+
+static Token create_sub_expression_identifier(TokenType tag);
+
+Grammar analyzer_analyze(RuleSet raw_rules) {
+	Grammar result = grammar_new();
+	result.rules = rule_set_new();
+
+	rule_set_iterate(raw_rules, rule, 
+		for(Definition *it1 = cvector_begin(rule->definitions); it1 != cvector_end(rule->definitions); it1 += 1) {
+			size_t start_position = 0;
+			Definition new_definition = hoist(&result, *it1, &start_position, (Token) { .lexeme = it1[0]->lexeme, .tag = it1[0]->tag + 1, });
+
+			if(new_definition != NULL) {
+				if(!rule_set_insert(&result.rules, rule->identifier, new_definition, RuleSetEntryMask_None)) {
+					// Error
+				}
+			}
+		}
+	);
+
+	rule_set_iterate(result.rules, rule,
+		RuleSetEntry *rse = (RuleSetEntry *)rule;
+		rse->definitions = split((RuleSetEntry *)rule);
+	);
+
+	rule_set_iterate(result.rules, rule, {
+		if(!rule_referenced(result.rules, *rule)) {
+			result.start = rule;
+			break;
+		}
+	});
+
+	return result;
+}
+
+static Definition hoist(Grammar *g, Definition d, size_t *position, Token sub_end_token) {
+	Definition result = definition_new();
+
+	while(*position < cvector_size(d)) {
+		Token current_token = d[*position];
+
+		if(current_token.tag == TokenType_LeftBrace ||
+		   current_token.tag == TokenType_LeftBracket ||
+		   current_token.tag == TokenType_LeftParenthesis) {
+			// Get sub expression offset by 1
+			*position += 1;
+			Definition sub_definition = hoist(g, d, position, (Token) { .tag = current_token.tag + 1 });
+			Token sub_identifier = create_sub_expression_identifier(current_token.tag);
+
+			switch(current_token.tag) {
+			case TokenType_LeftBrace:
+				if(!rule_set_insert(&g->rules, sub_identifier, sub_definition, RuleSetEntryMask_Repetition | RuleSetEntryMask_Dynamic)) {
+					// Error
+				}
+				break;
+			case TokenType_LeftBracket:
+				if(!rule_set_insert(&g->rules, sub_identifier, sub_definition, RuleSetEntryMask_Optional | RuleSetEntryMask_Optional)) {
+					// Error
+				}
+				break;
+			case TokenType_LeftParenthesis:
+				rule_set_insert(&g->rules, sub_identifier, sub_definition, RuleSetEntryMask_Dynamic);
+				break;
+			default:
+				break;
+			}
+
+			definition_push_back(&result, sub_identifier);
+			token_set_insert(&g->variables, sub_identifier);
+			token_set_insert(&g->dynamic_tokens, sub_identifier);
+		} else if(current_token.tag == TokenType_Single_Literal || current_token.tag == TokenType_Double_Literal) {
+			definition_push_back(&result, current_token);
+			token_set_insert(&g->terminals, current_token);
+			*position += 1;
+		} else if(current_token.tag == TokenType_Identifier) {
+			definition_push_back(&result, current_token);
+			token_set_insert(&g->variables, current_token);
+			*position += 1;
+		} else if(current_token.tag == TokenType_RightBrace ||
+			  current_token.tag == TokenType_RightBracket ||
+			  current_token.tag == TokenType_RightParenthesis) {
+			if(current_token.tag != sub_end_token.tag) {
+				// Error
+				// mismatch
+			}
+
+			*position += 1;
+
+			return result;
+		} else if(current_token.tag == TokenType_Pipe) {
+			definition_push_back(&result, current_token);
+			*position += 1;
+		}
+	}
+
+	return result;
+}
+
+static cvector(Definition) split(RuleSetEntry *rule) {
+	cvector(Definition) result = NULL;
+	//bool repetition = strncmp("@r", rule->identifier.lexeme.data, 2) == 0;
+	Definition current = definition_new();
+
+	for(Token *it1 = cvector_begin(rule->definitions[0]); it1 != cvector_end(rule->definitions[0]); it1 += 1) {
+		if(it1->tag == TokenType_Pipe) {
+			if(rule->identifier.lexeme.data[0] == '@' && rule->identifier.lexeme.data[1] == 'r') {
+				definition_push_back(&current, rule->identifier);
+			}
+
+			cvector_push_back(result, current);
+			current = definition_new();
+
+			continue;
+		}
+
+		definition_push_back(&current, *it1);
+	}
+
+	if(rule->mask & RuleSetEntryMask_Repetition) {
+		definition_push_back(&current, rule->identifier);
+	}
+
+	cvector_push_back(result, current);
+
+	if((rule->mask & RuleSetEntryMask_Repetition) || (rule->mask & RuleSetEntryMask_Optional)) {
+		current = definition_new();
+		definition_push_back(&current, (Token) { .tag = TokenType_Invalid, });
+		cvector_push_back(result, current);
+	}
+
+	definition_delete(rule->definitions[0]);
+	cvector_free(rule->definitions);
+	rule->definitions = result;
+
+	return result;
+}
+
+static Token create_sub_expression_identifier(TokenType tag) {
+	char name[17] = { 0 };
+	char prefix = '\0';
+
+	switch(tag) {
+	case TokenType_LeftParenthesis:
+		prefix = 'g';
+		break;
+	case TokenType_LeftBrace:
+		prefix = 'r';
+		break;
+	case TokenType_LeftBracket:
+		prefix = 'o';
+		break;
+	default:
+		// Error
+		break;
+	}
+
+	snprintf(name, sizeof(name) /  sizeof(*name), "@%c%u", prefix, (unsigned int) rand());
+
+	return (Token) {
+		.lexeme = (Lexeme) {
+			.data = memory_copy(name, sizeof(name) / sizeof(*name)),
+			.length = strlen(name),
+		},
+		.tag = TokenType_Identifier,
 	};
-	bool changed = true;
+}
 
+static bool rule_referenced(RuleSet rules, RuleSetEntry target) {
+	rule_set_iterate(rules, it1, {
+		for(Definition *it2 = cvector_begin(it1->definitions); it2 != cvector_end(it1->definitions); it2 += 1) {
+			for(Token *it3 = cvector_begin(*it2); it3 != cvector_end(*it2); it3 += 1) {
+				if(token_equals(*it3, target.identifier)) {
+					return true;
+				}
+
+			}
+		}
+	});
+
+	return false;
+}
+
+/* static bool rule_referenced(cvector(Rule) rules, Rule target) {
+	for(Rule *it1 = cvector_begin(rules); it1 != cvector_end(rules); it1 += 1) {
+		for(Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
+			if(it2->tag == TokenType_Identifier) {
+				if(token_equals(*it2, target.identifier)) { return true;
+				}
+			}
+		}
+	}
+
+	return false;
+} */
+/*
 	// Hoist sub expressions into their own rules
 	while(changed) {
 		changed = false;
@@ -48,8 +242,10 @@ Grammar analyzer_analyze(cvector(Rule) r) {
 
 					depth += 1;
 				} else if(current_token.tag == TokenType_Single_Literal || current_token.tag == TokenType_Double_Literal) {
+					printf("%d\n", __LINE__);
 					token_set_insert(&result.terminals, current_token);
 				} else if(current_token.tag == TokenType_Identifier) {
+					printf("%d\n", __LINE__);
 					token_set_insert(&result.variables, current_token);
 				} else if(current_token.tag == TokenType_RightBrace ||
 				   	  current_token.tag == TokenType_RightBracket ||
@@ -87,7 +283,9 @@ Grammar analyzer_analyze(cvector(Rule) r) {
 						.tag = TokenType_Identifier,
 					};
 
+					printf("%d\n", __LINE__);
 					token_set_insert(&result.variables, new_identifier);
+					printf("%d\n", __LINE__);
 					token_set_insert(&result.dynamic_tokens, new_identifier);
 
 					Rule new_rule = {
@@ -157,9 +355,11 @@ Grammar analyzer_analyze(cvector(Rule) r) {
 						cvector_push_back(first_rule.definition, current_rule->definition[k]);
 
 						if(current_rule->definition[k].tag == TokenType_Identifier) {
+					printf("%d\n", __LINE__);
 							token_set_insert(&result.variables, current_rule->definition[k]);
 						} else if(current_rule->definition[k].tag == TokenType_Double_Literal ||
 						   	  current_rule->definition[k].tag == TokenType_Single_Literal) {
+					printf("%d\n", __LINE__);
 							token_set_insert(&result.terminals, current_rule->definition[k]);
 						}
 					}
@@ -173,9 +373,11 @@ Grammar analyzer_analyze(cvector(Rule) r) {
 						cvector_push_back(second_rule.definition, current_rule->definition[k]);
 
 						if(current_rule->definition[k].tag == TokenType_Identifier) {
+					printf("%d\n", __LINE__);
 							token_set_insert(&result.variables, current_rule->definition[k]);
 						} else if(current_rule->definition[k].tag == TokenType_Double_Literal ||
 						   	  current_rule->definition[k].tag == TokenType_Single_Literal) {
+					printf("%d\n", __LINE__);
 							token_set_insert(&result.terminals, current_rule->definition[k]);
 						}
 					}
@@ -201,28 +403,12 @@ Grammar analyzer_analyze(cvector(Rule) r) {
 			}
 		}
 	}
+*/
 
 	// Find start symbol
-	for(Rule *it1 = cvector_begin(result.rules); it1 != cvector_end(result.rules); it1 += 1) {
+	/* for(Rule *it1 = cvector_begin(result.rules); it1 != cvector_end(result.rules); it1 += 1) {
 		if(!rule_referenced(result.rules, *it1)) {
 			result.start = it1;
 			break;
 		}
-	}
-
-	return result;
-}
-
-static bool rule_referenced(cvector(Rule) rules, Rule target) {
-	for(Rule *it1 = cvector_begin(rules); it1 != cvector_end(rules); it1 += 1) {
-		for(Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
-			if(it2->tag == TokenType_Identifier) {
-				if(token_equals(*it2, target.identifier)) {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
+	} */

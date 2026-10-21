@@ -22,7 +22,6 @@ TokenSet token_set_new() {
 }
 
 void token_set_delete(TokenSet set) {
-	//hashmap_clear(set, false);
 	hashmap_free(set);
 }
 
@@ -44,5 +43,5 @@ static int token_set_compare(const void *a, const void *b, void *udata) {
 	const Token *ua = a;
 	const Token *ub = b;
 
-	return token_equals(*ua, *ub);
+	return !token_equals(*ua, *ub);
 }

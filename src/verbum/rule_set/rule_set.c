@@ -126,7 +126,7 @@ static int rule_set_compare(const void *a, const void *b, void *udata) {
 	const RuleSetEntry *ua = a;
 	const RuleSetEntry *ub = b;
 
-	return token_equals(ua->identifier, ub->identifier);
+	return !token_equals(ua->identifier, ub->identifier);
 }
 
 static void rule_set_memory_delete(void *memory) {

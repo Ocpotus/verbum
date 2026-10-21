@@ -12,11 +12,24 @@
 
 
 
+/*
+ * C99 standard guarantees sizeof enum is >= sizeof int
+ * First 4 bits will store metadata
+ * Last 4 bits will be used store to get nth group, repetition, optional
+ * Allowing for 2^4 # of groups, repetitions, or optionals. Which is more than sufficient
+ *
+ * Diagram:
+ * 	Group #33: 1 0 0 1 | 1 0 0 0 0 1 ...
+ * 		   |	 | \_______________/
+ * Group is dynamic/     |         \Nth group processed
+ * 	    Group bit set/
+ */
 typedef enum RuleSetEntryMask {
 	RuleSetEntryMask_None = 0x0,
 	RuleSetEntryMask_Dynamic = 0x1 << 0,
 	RuleSetEntryMask_Repetition = 0x1 << 1,
 	RuleSetEntryMask_Optional = 0x1 << 2,
+	RuleSetEntryMask_Group = 0x1 << 3,
 } RuleSetEntryMask;
 
 // Will become rule eventually

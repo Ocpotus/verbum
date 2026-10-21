@@ -10,6 +10,7 @@
 //#include "../rule/rule.h"
 #include "../grammar/grammar.h"
 #include "../rule_set/rule_set.h"
+#include "../symbol/symbol.h"
 
 #include "analyzer.h"
 
@@ -81,7 +82,7 @@ static Definition hoist(Grammar *g, Definition d, size_t *position, Token sub_en
 				}
 				break;
 			case TokenType_LeftBracket:
-				if(!rule_set_insert(&g->rules, sub_identifier, sub_definition, RuleSetEntryMask_Optional | RuleSetEntryMask_Optional)) {
+				if(!rule_set_insert(&g->rules, sub_identifier, sub_definition, RuleSetEntryMask_Optional | RuleSetEntryMask_Dynamic)) {
 					// Error
 				}
 				break;
@@ -125,12 +126,11 @@ static Definition hoist(Grammar *g, Definition d, size_t *position, Token sub_en
 
 static cvector(Definition) split(RuleSetEntry *rule) {
 	cvector(Definition) result = NULL;
-	//bool repetition = strncmp("@r", rule->identifier.lexeme.data, 2) == 0;
 	Definition current = definition_new();
 
 	for(Token *it1 = cvector_begin(rule->definitions[0]); it1 != cvector_end(rule->definitions[0]); it1 += 1) {
 		if(it1->tag == TokenType_Pipe) {
-			if(rule->identifier.lexeme.data[0] == '@' && rule->identifier.lexeme.data[1] == 'r') {
+			if(rule->mask & RuleSetEntryMask_Repetition) {
 				definition_push_back(&current, rule->identifier);
 			}
 

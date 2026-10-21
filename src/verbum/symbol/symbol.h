@@ -1,22 +1,40 @@
 #ifndef VERBUM_SYMBOL_H
 #define VERBUM_SYMBOL_H
 
+#include <stdint.h>
 #include <stdbool.h>
 
 #include "../lexeme/lexeme.h"
 
 
-typedef enum SymbolType {
-	SymbolType_Terminal,
-	SymbolType_NonTerminal,
-} SymbolType;
+/*
+ * C99 standard guarantees sizeof enum is >= sizeof int
+ * First 4 bits will store metadata
+ * Last 28 bits will be used store to get nth group, repetition, optional
+ * Allowing for 2^28 # of groups, repetitions, or optionals. Which is more than sufficient
+ *
+ * Diagram:
+ * 	Group #33: 1 0 0 1 | 1 0 0 0 0 1 ...
+ * 		   |	 | \_______________/
+ * Group is dynamic/     |         \Nth group processed
+ * 	    Group bit set/
+ */
+typedef enum SymbolMask {
+	SymbolMask_None = 0x0 << 0,
+	SymbolMask_Dynamic = 0x1 << 0,
+	SymbolMask_Repetition = 0x1 << 1,
+	SymbolMask_Optional = 0x1 << 2,
+	SymbolMask_Group = 0x1 << 3,
+} SymbolMask;
 
 typedef struct Symbol {
 	Lexeme lexeme;
-	SymbolType tag;
+	uint32_t mask;
 } Symbol;
 
-Symbol symbol_new(SymbolType type, Lexeme l);
+Symbol symbol_new(Lexeme l, uint32_t mask);
+
+void symbol_delete(Symbol *s);
 
 bool symbol_equals(Symbol a, Symbol b);
 

@@ -13,15 +13,21 @@
 static uint64_t symbol_set_hash(const void *item, uint64_t seed0, uint64_t seed1);
 static int symbol_set_compare(const void *a, const void *b, void *udata);
 
-Symbol symbol_new(SymbolType type, Lexeme l) {
+Symbol symbol_new(Lexeme l, uint32_t mask) {
 	return (Symbol) {
 		.lexeme = l,
-		.tag = type,
+		.mask = mask,
 	};
 }
 
+void symbol_delete(Symbol *s) {
+	if(s->mask & SymbolMask_Dynamic) {
+		lexeme_delete(s->lexeme);
+	}
+}
+
 bool symbol_equals(Symbol a, Symbol b) {
-	if((a.tag != b.tag) || (a.lexeme.length != b.lexeme.length)) {
+	if((a.mask != b.mask) || (a.lexeme.length != b.lexeme.length)) {
 		return false;
 	}
 

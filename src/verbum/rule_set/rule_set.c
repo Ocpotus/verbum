@@ -19,13 +19,10 @@ static int rule_set_compare(const void *a, const void *b, void *udata);
 
 static void rule_set_memory_delete(void *memory);
 
-		//rule_set_entry_delete(*rule);
-
 RuleSet rule_set_new() {
 	return hashmap_new_with_allocator(memory_new, memory_resize, rule_set_memory_delete,
 					  sizeof(RuleSetEntry), 0, 0, 0,
 					  rule_set_hash, rule_set_compare, NULL, NULL);
-
 }
 
 void rule_set_delete(RuleSet set) {
@@ -101,15 +98,9 @@ void rule_set_update(RuleSet *set, Token identifier, cvector(Definition) definit
 
 
 void rule_set_entry_delete(RuleSetEntry rse) {
-	/* for(Definition *it1 = cvector_begin(rse.definitions); it1 != cvector_end(rse.definitions); it1 += 1) {
-		definition_delete(*it1);
-	} */
-
 	if(rse.mask & RuleSetEntryMask_Dynamic) {
 		token_delete(rse.identifier);
 	}
-
-	//cvector_free(rse.definitions);
 }
 
 void rule_set_entry_push_back(RuleSetEntry *rse, Definition d) {
@@ -125,6 +116,10 @@ static uint64_t rule_set_hash(const void *item, uint64_t seed0, uint64_t seed1) 
 static int rule_set_compare(const void *a, const void *b, void *udata) {
 	const RuleSetEntry *ua = a;
 	const RuleSetEntry *ub = b;
+
+	if(ua->mask != ub->mask) {
+		return false;
+	}
 
 	return !token_equals(ua->identifier, ub->identifier);
 }

@@ -1,8 +1,6 @@
 #ifndef VERBUM_GRAMMAR_H
 #define VERBUM_GRAMMAR_H
 
-#include "../../lib/c-vector/cvector.h"
-
 #include "../symbol/symbol.h"
 #include "../rule_set/rule_set.h"
 
@@ -12,8 +10,6 @@
  * Stores all necessary aspects of a formal language
  *
  * MEMBERS:
- * 	dynamic_symbols: this is for memory keeping and will
- * 			 contain all dynamically constructed identifiers
  * 	rules: instructions on how to substitute nonterminals
  * 	terminals: any symbol that cannot be substitute
  * 	nonterminals: any symbol that can be substituted
@@ -27,8 +23,6 @@
  * 	from the Lexer's source
  */
 typedef struct Grammar {
-	SymbolSet dynamic_symbols;
-
 	RuleSet rules;
 	SymbolSet terminals;
 	SymbolSet nonterminals;

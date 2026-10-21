@@ -31,14 +31,8 @@ Symbol symbol_from_token(Token t) {
 	return symbol_new(t.lexeme, mask);
 }
 
-void symbol_delete(Symbol *s) {
-	if(s->mask & SymbolMask_Dynamic) {
-		lexeme_delete(s->lexeme);
-	}
-}
-
 bool symbol_equals(Symbol a, Symbol b) {
-	if(((a.mask ^ b.mask) & SymbolMask_Terminal) || (a.lexeme.length != b.lexeme.length)) {
+	if(a.mask != b.mask || a.lexeme.length != b.lexeme.length) {
 		return false;
 	}
 

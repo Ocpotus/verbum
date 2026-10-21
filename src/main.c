@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
 #include "lib/c-vector/cvector.h"
 
@@ -8,18 +7,13 @@
 #include "verbum/symbol/symbol.h"
 #include "verbum/analyzer/analyzer.h"
 #include "verbum/lr0/lr0.h"
-#include "verbum/lr1/lr1.h"
 #include "verbum/parse/parse.h"
-#include "verbum/table/table.h"
-#include "verbum/parser/parser.h"
 #include "verbum/rule_set/rule_set.h"
 #include "verbum/definition/definition.h"
-#include "lib/hashmap.c/hashmap.h"
 #include "verbum/raw_rule/raw_rule.h"
 
 
 int main() {
-	srand(time(NULL));
 	Lexer *lexer = lexer_new("test/ebnf.ebnf");
 	cvector(RawRule) rules = verbum_parse(lexer);
 	Grammar grammar = analyzer_analyze(rules);
@@ -27,13 +21,27 @@ int main() {
 	rule_set_iterate(grammar.rules, rule, 
 		for(Definition *it1 = cvector_begin(rule->definitions); it1 != cvector_end(rule->definitions); it1 += 1) {
 			Definition definition = *it1;
+			uint32_t mask = rule->identifier.mask;
 
 			printf("%.*s", (int) rule->identifier.lexeme.length, rule->identifier.lexeme.data);
-			printf(" ->");
+
+			if(mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+				printf("%d", rule->identifier.mask >> 4);
+			}
+
+			printf(" -> ");
 
 			if(cvector_size(definition) != 0) {
 				for(Symbol *it2 = cvector_begin(definition); it2 != cvector_end(definition); it2 += 1) {
-					printf(" %.*s", (int) it2->lexeme.length, it2->lexeme.data);
+					uint32_t mask = it2->mask;
+
+					printf("%.*s", (int) it2->lexeme.length, it2->lexeme.data);
+
+					if(mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+						printf("%d", rule->identifier.mask >> 4);
+					}
+
+					printf(" ");
 				}
 			} else {
 				printf(" λ");
@@ -51,14 +59,30 @@ int main() {
 		printf("s%zu:\n", it1 - cvector_begin(lr0.states));
 
 		for(LR0Item *it2 = cvector_begin(it1->items); it2 != cvector_end(it1->items); it2 += 1) {
-			printf("\t%.*s -> ", (int) it2->rule.identifier.lexeme.length, it2->rule.identifier.lexeme.data);
+			uint32_t mask = it2->rule.identifier.mask;
+
+			printf("\t%.*s", (int) it2->rule.identifier.lexeme.length, it2->rule.identifier.lexeme.data);
+
+			if(mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+				printf("%d", it2->rule.identifier.mask >> 4);
+			}
+
+			printf(" -> ");
 
 			for(Symbol *it3 = cvector_begin(it2->rule.definitions[it2->rule_index]); it3 != cvector_end(it2->rule.definitions[it2->rule_index]); it3 += 1) {
 				if((size_t) (it3 - cvector_begin(it2->rule.definitions[it2->rule_index])) == it2->dot_pos) {
 					printf("* ");
 				}
 
-				printf("%.*s ", (int) it3->lexeme.length, it3->lexeme.data);
+				uint32_t mask = it3->mask;
+
+				printf("%.*s", (int) it3->lexeme.length, it3->lexeme.data);
+
+				if(mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+					printf("%d", it3->mask >> 4);
+				}
+
+				printf(" ");
 			}
 
 			if(it2->dot_pos == cvector_size(it2->rule.definitions[it2->rule_index])) {

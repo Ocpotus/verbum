@@ -10,25 +10,25 @@
 
 /*
  * C99 standard guarantees sizeof enum is >= sizeof int
- * First 5 bits will store metadata
- * Last 27 bits will be used store to get nth group, repetition, optional
- * Allowing for 2^27 # of groups, repetitions, or optionals. Which is more than sufficient
+ * First 4 bits will store metadata
+ * Last 28 bits will be used store to get nth group, repetition, optional
+ * Allowing for 2^28 # of groups, repetitions, or optionals. Which is more than sufficient...
  *
- * Only SymbolMask_Terminal takes part in equality, the rest is metadata
+ * The whole mask takes part in equality, sub expressions share a lexeme (e.g. "(") and are only
+ * told apart by their flag and Nth index
  *
  * Diagram:
- * 	Group #33: 1 0 0 1 0 | 1 0 0 0 0 1 ...
- * 		   |	 |   \_______________/
- * Group is dynamic/     |           \Nth group processed
+ * 	Group #33: 0 0 0 1 | 1 0 0 0 0 1 ...
+ * 		   	 | \_______________/
+ *	                 |  \Nth group processed
  * 	    Group bit set/
  */
 typedef enum SymbolMask {
 	SymbolMask_None = 0x0 << 0,
-	SymbolMask_Dynamic = 0x1 << 0,
-	SymbolMask_Repetition = 0x1 << 1,
-	SymbolMask_Optional = 0x1 << 2,
-	SymbolMask_Group = 0x1 << 3,
-	SymbolMask_Terminal = 0x1 << 4,
+	SymbolMask_Repetition = 0x1 << 0,
+	SymbolMask_Optional = 0x1 << 1,
+	SymbolMask_Group = 0x1 << 2,
+	SymbolMask_Terminal = 0x1 << 3,
 } SymbolMask;
 
 typedef struct Symbol {
@@ -49,8 +49,6 @@ Symbol symbol_new(Lexeme l, uint32_t mask);
  * 	a Symbol marked as a terminal if t is a literal
  */
 Symbol symbol_from_token(Token t);
-
-void symbol_delete(Symbol *s);
 
 bool symbol_equals(Symbol a, Symbol b);
 

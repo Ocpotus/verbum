@@ -8,8 +8,7 @@
 #include "../definition/definition.h"
 #include "../rule_set/rule_set.h"
 #include "../grammar/grammar.h"
-#include "../token/token.h"
-#include "../token_set/token_set.h"
+#include "../symbol/symbol.h"
 
 #include "lr0.h"
 
@@ -29,19 +28,18 @@
 static void lr0_closure(Grammar g, LR0State *s);
 /* lr0_goto
  *
- * Computes the next state if a token is consumed.
+ * Computes the next state if a symbol is consumed.
  *
  * PARAMETERS:
  * 	g: the grammar to act on
  * 	s: the current state
- * 	t: the token used to determine the next state
+ * 	t: the symbol used to determine the next state
  *
  * RETURNS:
  * 	a newly constructed state
  */
-static LR0State lr0_goto(Grammar g, LR0State *s, Token t);
+static LR0State lr0_goto(Grammar g, LR0State *s, Symbol t);
 
-static void item_delete(LR0Item *i);
 static void state_delete(LR0State *s);
 static bool state_contains(LR0State s, LR0Item i);
 static bool state_equals(LR0State a, LR0State b);
@@ -60,7 +58,7 @@ LR0Parser lr0_new(Grammar g) {
 		.dot_pos = 0,
 		.rule = *g.start,
 	};
-	TokenSet token_sets[] = { g.terminals, g.nonterminals };
+	SymbolSet symbol_sets[] = { g.terminals, g.nonterminals };
 	size_t transition_id = 0;
 	size_t goto_count = 0;
 
@@ -70,9 +68,9 @@ LR0Parser lr0_new(Grammar g) {
 
 	for(size_t i = 0; i < cvector_size(result.states); i += 1) {
 		for(size_t j = 0; j < 2; j += 1) {
-			TokenSet tokens = token_sets[j];
+			SymbolSet symbols = symbol_sets[j];
 
-			token_set_iterate(tokens, it1, {
+			symbol_set_iterate(symbols, it1, {
 				LR0State *source = &result.states[i];
 				LR0State ns = lr0_goto(g, source, *it1);
 
@@ -133,11 +131,11 @@ static void lr0_closure(Grammar g, LR0State *s) {
 			continue;
 		}
 
-		Token token = item.rule.definitions[item.rule_index][item.dot_pos];
+		Symbol symbol = item.rule.definitions[item.rule_index][item.dot_pos];
 
 		// Nonterminal is next add all items with dot_pos == 0
-		if(token_set_contains(g.nonterminals, token)) {
-			RuleSetEntry rs = rule_set_get(g.rules, token);
+		if(symbol_set_contains(g.nonterminals, symbol)) {
+			RuleSetEntry rs = rule_set_get(g.rules, symbol);
 			
 			for(size_t j = 0; j < cvector_size(rs.definitions); j += 1) {
 				LR0Item ni = {
@@ -154,7 +152,7 @@ static void lr0_closure(Grammar g, LR0State *s) {
 	}
 }
 
-static LR0State lr0_goto(Grammar g, LR0State *s, Token t) {
+static LR0State lr0_goto(Grammar g, LR0State *s, Symbol t) {
 	log_debug("COMPUTING %s for %p", __FUNCTION__, s);
 	LR0State result = {
 		.items = NULL
@@ -165,9 +163,9 @@ static LR0State lr0_goto(Grammar g, LR0State *s, Token t) {
 
 
 		if(current.dot_pos < cvector_size(current.rule.definitions[current.rule_index])) {
-			Token nt = current.rule.definitions[current.rule_index][current.dot_pos];
+			Symbol nt = current.rule.definitions[current.rule_index][current.dot_pos];
 
-			if(token_equals(t, nt)) {
+			if(symbol_equals(t, nt)) {
 				LR0Item ni = {
 					.dot_pos = current.dot_pos + 1,
 					.rule_index = current.rule_index,
@@ -208,25 +206,17 @@ static bool item_equals(LR0Item a, LR0Item b) {
 		return false;
 	}
 
-	if(!token_equals(a.rule.identifier, b.rule.identifier)) {
+	if(!symbol_equals(a.rule.identifier, b.rule.identifier)) {
 		return false;
 	}
 
 	for(size_t i = 0; i < cvector_size(a.rule.definitions[a.rule_index]); i += 1) {
-		if(!token_equals(a.rule.definitions[a.rule_index][i], b.rule.definitions[b.rule_index][i])) {
+		if(!symbol_equals(a.rule.definitions[a.rule_index][i], b.rule.definitions[b.rule_index][i])) {
 			return false;
 		}
 	}
 
 	return true;
-}
-
-static void item_delete(LR0Item *i) {
-	token_delete(i->rule.identifier);
-
-	for(Token *it1 = cvector_begin(i->rule.definitions[i->rule_index]); it1 != cvector_end(i->rule.definitions[i->rule_index]); it1 += 1) {
-		token_delete(*it1);
-	}
 }
 
 static void state_delete(LR0State *s) {

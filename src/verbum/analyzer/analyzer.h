@@ -4,12 +4,16 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../grammar/grammar.h"
-#include "../rule_set/rule_set.h"
+#include "../raw_rule/raw_rule.h"
 
 
-/* Constructs a grammar from a vector of rules
+/* Constructs a grammar from a vector of raw rules
+ *
+ * NOTES:
+ * 	the grammar borrows lexemes from the Lexer that produced the rules,
+ * 	delete the Grammar before the Lexer
  */
-Grammar analyzer_analyze(RuleSet rules);
+Grammar analyzer_analyze(cvector(RawRule) rules);
 
 
 #endif

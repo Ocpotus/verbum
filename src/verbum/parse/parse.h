@@ -4,12 +4,10 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../lexer/lexer.h"
-#include "../rule/rule.h"
-#include "../rule_set/rule_set.h"
+#include "../raw_rule/raw_rule.h"
 
 
-RuleSet verbum_parse(Lexer *l);
-//cvector(Rule) verbum_parse(Lexer *l);
+cvector(RawRule) verbum_parse(Lexer *l);
 
 
 #endif

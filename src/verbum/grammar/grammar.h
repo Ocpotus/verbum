@@ -3,8 +3,7 @@
 
 #include "../../lib/c-vector/cvector.h"
 
-#include "../token_set/token_set.h"
-//#include "../rule/rule.h"
+#include "../symbol/symbol.h"
 #include "../rule_set/rule_set.h"
 
 
@@ -13,23 +12,26 @@
  * Stores all necessary aspects of a formal language
  *
  * MEMBERS:
- * 	dynamic_tokens: this is for memory keeping and will
- * 			contain all dynamically constructed identifiers
+ * 	dynamic_symbols: this is for memory keeping and will
+ * 			 contain all dynamically constructed identifiers
  * 	rules: instructions on how to substitute nonterminals
- * 	terminals: any token that cannot be substitute
- * 	nonterminals: any token that can be substituted
+ * 	terminals: any symbol that cannot be substitute
+ * 	nonterminals: any symbol that can be substituted
  * 	start: the start symbol/entry point for a language
  *
  * NOTES:
  * 	repetition, optional, and group expressions are encoded into the
  * 	name of the rule with an @ followed by r, o, or g
+ *
+ * 	only dynamic_symbols own their lexemes, every other symbol borrows
+ * 	from the Lexer's source
  */
 typedef struct Grammar {
-	TokenSet dynamic_tokens;
+	SymbolSet dynamic_symbols;
 
 	RuleSet rules;
-	TokenSet terminals;
-	TokenSet nonterminals;
+	SymbolSet terminals;
+	SymbolSet nonterminals;
 	const RuleSetEntry *start;
 } Grammar;
 

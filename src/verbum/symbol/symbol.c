@@ -6,6 +6,7 @@
 
 #include "../memory/memory.h"
 #include "../lexeme/lexeme.h"
+#include "../token/token.h"
 
 #include "symbol.h"
 
@@ -20,6 +21,16 @@ Symbol symbol_new(Lexeme l, uint32_t mask) {
 	};
 }
 
+Symbol symbol_from_token(Token t) {
+	uint32_t mask = SymbolMask_None;
+
+	if(t.tag == TokenType_Single_Literal || t.tag == TokenType_Double_Literal) {
+		mask |= SymbolMask_Terminal;
+	}
+
+	return symbol_new(t.lexeme, mask);
+}
+
 void symbol_delete(Symbol *s) {
 	if(s->mask & SymbolMask_Dynamic) {
 		lexeme_delete(s->lexeme);
@@ -27,8 +38,12 @@ void symbol_delete(Symbol *s) {
 }
 
 bool symbol_equals(Symbol a, Symbol b) {
-	if((a.mask != b.mask) || (a.lexeme.length != b.lexeme.length)) {
+	if(((a.mask ^ b.mask) & SymbolMask_Terminal) || (a.lexeme.length != b.lexeme.length)) {
 		return false;
+	}
+
+	if(a.lexeme.data == b.lexeme.data) {
+		return true;
 	}
 
 	return strncmp(a.lexeme.data, b.lexeme.data, a.lexeme.length) == 0;
@@ -62,5 +77,5 @@ static int symbol_set_compare(const void *a, const void *b, void *udata) {
 	const Symbol *ua = a;
 	const Symbol *ub = b;
 
-	return symbol_equals(*ua, *ub);
+	return !symbol_equals(*ua, *ub);
 }

@@ -5,7 +5,7 @@
 #include "lib/c-vector/cvector.h"
 
 #include "verbum/lexer/lexer.h"
-#include "verbum/token/token.h"
+#include "verbum/symbol/symbol.h"
 #include "verbum/analyzer/analyzer.h"
 #include "verbum/lr0/lr0.h"
 #include "verbum/lr1/lr1.h"
@@ -15,12 +15,13 @@
 #include "verbum/rule_set/rule_set.h"
 #include "verbum/definition/definition.h"
 #include "lib/hashmap.c/hashmap.h"
+#include "verbum/raw_rule/raw_rule.h"
 
 
 int main() {
 	srand(time(NULL));
 	Lexer *lexer = lexer_new("test/ebnf.ebnf");
-	RuleSet rules = verbum_parse(lexer);
+	cvector(RawRule) rules = verbum_parse(lexer);
 	Grammar grammar = analyzer_analyze(rules);
 
 	rule_set_iterate(grammar.rules, rule, 
@@ -31,7 +32,7 @@ int main() {
 			printf(" ->");
 
 			if(cvector_size(definition) != 0) {
-				for(Token *it2 = cvector_begin(definition); it2 != cvector_end(definition); it2 += 1) {
+				for(Symbol *it2 = cvector_begin(definition); it2 != cvector_end(definition); it2 += 1) {
 					printf(" %.*s", (int) it2->lexeme.length, it2->lexeme.data);
 				}
 			} else {
@@ -52,7 +53,7 @@ int main() {
 		for(LR0Item *it2 = cvector_begin(it1->items); it2 != cvector_end(it1->items); it2 += 1) {
 			printf("\t%.*s -> ", (int) it2->rule.identifier.lexeme.length, it2->rule.identifier.lexeme.data);
 
-			for(Token *it3 = cvector_begin(it2->rule.definitions[it2->rule_index]); it3 != cvector_end(it2->rule.definitions[it2->rule_index]); it3 += 1) {
+			for(Symbol *it3 = cvector_begin(it2->rule.definitions[it2->rule_index]); it3 != cvector_end(it2->rule.definitions[it2->rule_index]); it3 += 1) {
 				if((size_t) (it3 - cvector_begin(it2->rule.definitions[it2->rule_index])) == it2->dot_pos) {
 					printf("* ");
 				}
@@ -71,8 +72,13 @@ int main() {
 	}
 
 	lr0_delete(lr0);
-	rule_set_delete(rules);
 	grammar_delete(&grammar);
+
+	for(RawRule *it1 = cvector_begin(rules); it1 != cvector_end(rules); it1 += 1) {
+		raw_rule_delete(it1);
+	}
+
+	cvector_free(rules);
 	lexer_delete(lexer);
 
 	return 0;

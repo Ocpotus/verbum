@@ -7,36 +7,19 @@
 #include "../../lib/c-vector/cvector.h"
 #include "../../lib/hashmap.c/hashmap.h"
 
-#include "../token/token.h"
+#include "../symbol/symbol.h"
 #include "../definition/definition.h"
 
 
-
-/*
- * C99 standard guarantees sizeof enum is >= sizeof int
- * First 4 bits will store metadata
- * Last 4 bits will be used store to get nth group, repetition, optional
- * Allowing for 2^4 # of groups, repetitions, or optionals. Which is more than sufficient
+/* RuleSetEntry
  *
- * Diagram:
- * 	Group #33: 1 0 0 1 | 1 0 0 0 0 1 ...
- * 		   |	 | \_______________/
- * Group is dynamic/     |         \Nth group processed
- * 	    Group bit set/
+ * MEMBERS:
+ * 	definitions: every alternative for the rule
+ * 	identifier: rule name, its mask holds the rule's metadata (see SymbolMask)
  */
-typedef enum RuleSetEntryMask {
-	RuleSetEntryMask_None = 0x0,
-	RuleSetEntryMask_Dynamic = 0x1 << 0,
-	RuleSetEntryMask_Repetition = 0x1 << 1,
-	RuleSetEntryMask_Optional = 0x1 << 2,
-	RuleSetEntryMask_Group = 0x1 << 3,
-} RuleSetEntryMask;
-
-// Will become rule eventually
 typedef struct RuleSetEntry {
 	cvector(Definition) definitions;
-	Token identifier;
-	uint8_t mask;
+	Symbol identifier;
 } RuleSetEntry;
 
 typedef struct hashmap *RuleSet;
@@ -47,35 +30,38 @@ void rule_set_delete(RuleSet set);
 
 /* rule_set_contains
  *
- * Checks if a token is in a given RuleSet
+ * Checks if a rule with a given definition is in a given RuleSet
  *
  * PARAMETERS:
  * 	set: set to check
- * 	t: token to check for
+ * 	identifier: rule to check for
+ * 	definition: definition to check for
  *
  * RETURNS:
  * 	true if found, false if not
  *
  */
-bool rule_set_contains(RuleSet set, Token identifier, Definition definition);
+bool rule_set_contains(RuleSet set, Symbol identifier, Definition definition);
 
 /* rule_set_insert
  *
- * Inserts a token into the set when possible
+ * Appends a definition to a rule, creating the rule if needed.
+ * The identifier's mask is merged into the stored identifier's mask.
  *
  * PARAMETERS:
  * 	set: set to insert into
- * 	t: token to insert
+ * 	identifier: rule to insert into
+ * 	definition: definition to append
  *
  * RETURNS:
- * 	true if inserted, false if not
+ * 	the stored RuleSetEntry, NULL on failure
  */
-const void *rule_set_insert(RuleSet *set, Token identifier, Definition definition, uint8_t mask);
+const RuleSetEntry *rule_set_insert(RuleSet *set, Symbol identifier, Definition definition);
 
-RuleSetEntry rule_set_get(RuleSet set, Token identifier);
+RuleSetEntry rule_set_get(RuleSet set, Symbol identifier);
 
-bool rule_set_remove(RuleSet *set, Token identifier);
-void rule_set_update(RuleSet *set, Token identifier, cvector(Definition) definitions, uint8_t mask);
+bool rule_set_remove(RuleSet *set, Symbol identifier);
+void rule_set_update(RuleSet *set, Symbol identifier, cvector(Definition) definitions);
 
 
 /* rule_set_iterate
@@ -98,8 +84,6 @@ do {\
 	}\
 \
 } while(0)
-
-void rule_set_entry_delete(RuleSetEntry rse);
 
 void rule_set_entry_push_back(RuleSetEntry *rse, Definition d);
 

@@ -46,7 +46,7 @@ typedef struct LR0Transition {
 	size_t id;
 	size_t source_index;
 	size_t destination_index;
-	Token symbol;
+	Symbol symbol;
 } LR0Transition;
 
 typedef struct LR0Parser {

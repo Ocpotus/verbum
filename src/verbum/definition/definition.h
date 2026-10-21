@@ -6,16 +6,16 @@
 
 #include "../../lib/c-vector/cvector.h"
 
-#include "../token/token.h"
+#include "../symbol/symbol.h"
 
 
-typedef cvector(Token) Definition;
+typedef cvector(Symbol) Definition;
 
 Definition definition_new();
 
 void definition_delete(Definition d);
 
-void definition_push_back(Definition *d, Token t);
+void definition_push_back(Definition *d, Symbol s);
 
 bool definition_equals(Definition a, Definition b);
 

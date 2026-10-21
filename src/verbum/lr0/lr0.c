@@ -46,7 +46,6 @@ static bool state_equals(LR0State a, LR0State b);
 
 
 LR0Parser lr0_new(Grammar g) {
-	log_debug("Entering %s", __FUNCTION__);
 	LR0Parser result = {
 		.states = NULL,
 		.transitions = NULL,
@@ -107,8 +106,6 @@ LR0Parser lr0_new(Grammar g) {
 		}
 	}
 
-	log_debug("EXITING %s", __FUNCTION__);
-
 	return result;
 }
 
@@ -122,7 +119,7 @@ void lr0_delete(LR0Parser lr0) {
 }
 
 static void lr0_closure(Grammar g, LR0State *s) {
-	log_debug("COMPUTING THE %s for %p", __FUNCTION__, s);
+	log_debug("COMPUTING THE %s for %.*s", __FUNCTION__, (int) s->items->rule.identifier.lexeme.length, s->items->rule.identifier.lexeme.data);
 	for(size_t i = 0; i < cvector_size(s->items); i += 1) {
 		LR0Item item = s->items[i];
 		
@@ -153,7 +150,7 @@ static void lr0_closure(Grammar g, LR0State *s) {
 }
 
 static LR0State lr0_goto(Grammar g, LR0State *s, Symbol t) {
-	log_debug("COMPUTING %s for %p", __FUNCTION__, s);
+	log_debug("COMPUTING THE %s for %.*s", __FUNCTION__, (int) s->items->rule.identifier.lexeme.length, s->items->rule.identifier.lexeme.data);
 	LR0State result = {
 		.items = NULL
 	};

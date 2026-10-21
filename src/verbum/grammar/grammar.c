@@ -18,7 +18,7 @@ Grammar grammar_new() {
 		.rules = NULL,
 		.start = NULL,
 		.terminals = token_set_new(),
-		.variables = token_set_new(),
+		.nonterminals = token_set_new(),
 	};
 }
 
@@ -29,6 +29,6 @@ void grammar_delete(Grammar *g) {
 
 	token_set_delete(g->dynamic_tokens);
 	token_set_delete(g->terminals);
-	token_set_delete(g->variables);
+	token_set_delete(g->nonterminals);
 	rule_set_delete(g->rules);
 }

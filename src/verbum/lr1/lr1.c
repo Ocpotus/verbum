@@ -17,7 +17,7 @@
 /* lr1_closure
  *
  * Computes implicit items in a State.
- * In short if an Item has a dot preceding a nonterminal/variable it gathers all
+ * In short if an Item has a dot preceding a nonterminal it gathers all
  * Rules with that nonterminal as the identifier.
  *
  * PARAMETERS:
@@ -91,7 +91,7 @@ LR1Parser lr1_new(Grammar g, LR0Parser lr0) {
 		token_set_insert(&tokens, *it);
 	}
 
-	for(Token *it = cvector_begin(g.variables); it != cvector_end(g.variables); it += 1) {
+	for(Token *it = cvector_begin(g.nonterminals); it != cvector_end(g.nonterminals); it += 1) {
 		token_set_insert(&tokens, *it);
 	}
 

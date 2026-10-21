@@ -17,7 +17,7 @@
 /* lr0_closure
  *
  * Computes implicit items in a State.
- * In short if an Item has a dot preceding a nonterminal/variable it gathers all
+ * In short if an Item has a dot preceding a nonterminal it gathers all
  * Rules with that nonterminal as the identifier.
  *
  * PARAMETERS:
@@ -60,7 +60,7 @@ LR0Parser lr0_new(Grammar g) {
 		.dot_pos = 0,
 		.rule = *g.start,
 	};
-	TokenSet token_sets[] = { g.terminals, g.variables };
+	TokenSet token_sets[] = { g.terminals, g.nonterminals };
 	size_t transition_id = 0;
 	size_t goto_count = 0;
 
@@ -135,9 +135,8 @@ static void lr0_closure(Grammar g, LR0State *s) {
 
 		Token token = item.rule.definitions[item.rule_index][item.dot_pos];
 
-		// Nonterminal/variable is next add all items with dot_pos == 0
-
-		if(token_set_contains(g.variables, token)) {
+		// Nonterminal is next add all items with dot_pos == 0
+		if(token_set_contains(g.nonterminals, token)) {
 			RuleSetEntry rs = rule_set_get(g.rules, token);
 			
 			for(size_t j = 0; j < cvector_size(rs.definitions); j += 1) {

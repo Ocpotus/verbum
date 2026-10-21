@@ -15,9 +15,9 @@
  * MEMBERS:
  * 	dynamic_tokens: this is for memory keeping and will
  * 			contain all dynamically constructed identifiers
- * 	rules: instructions on how to substitute non-terminals/variables
+ * 	rules: instructions on how to substitute nonterminals
  * 	terminals: any token that cannot be substitute
- * 	variables: any token that can be substituted
+ * 	nonterminals: any token that can be substituted
  * 	start: the start symbol/entry point for a language
  *
  * NOTES:
@@ -29,7 +29,7 @@ typedef struct Grammar {
 
 	RuleSet rules;
 	TokenSet terminals;
-	TokenSet variables;
+	TokenSet nonterminals;
 	const RuleSetEntry *start;
 } Grammar;
 

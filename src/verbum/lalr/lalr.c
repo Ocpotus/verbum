@@ -11,11 +11,11 @@
 #include "lalr.h"
 
 
-typedef struct VariableInfo {
-	Token variable;
+typedef struct NonterminalInfo {
+	Token nonterminal;
 	bool nullable;
 	cvector(Token) firsts;
-} VariableInfo;
+} NonterminalInfo;
 
 typedef struct DirectedGraphNode {
 	int index;
@@ -30,29 +30,29 @@ typedef struct LookbackLink {
 /*
 static bool token_set_contains(cvector(Token) set, Token t);
 static void token_set_insert(cvector(Token) *set, Token t);
-static bool variable_info_set_contains(cvector(VariableInfo) set, VariableInfo vi);
-static void variable_info_set_insert(cvector(VariableInfo) *set, VariableInfo vi);
-static VariableInfo variable_info_set_get(cvector(VariableInfo) set, VariableInfo vi);
-static void variable_info_set_update(cvector(VariableInfo) set, VariableInfo vi);
+static bool nonterminal_info_set_contains(cvector(NonterminalInfo) set, NonterminalInfo vi);
+static void nonterminal_info_set_insert(cvector(NonterminalInfo) *set, NonterminalInfo vi);
+static NonterminalInfo nonterminal_info_set_get(cvector(NonterminalInfo) set, NonterminalInfo vi);
+static void nonterminal_info_set_update(cvector(NonterminalInfo) set, NonterminalInfo vi);
 static void digraph_traverse_reads(cvector(int) digraph_stack, int x, int *l_val, cvector(DirectedGraphNode) nodes, cvector(Transition) transitions, cvector(cvector(int)) graph);
 static int trace_transition_path(cvector(Transition) transitions, int start_state, cvector(Token) path);
 
 
 
 void lalr_construct(Grammar g, LR0 lr0) {
-	cvector(VariableInfo) variable_info = NULL;
+	cvector(NonterminalInfo) nonterminal_info = NULL;
 	bool changed = true;
 
-	// Propogate variable_info
+	// Propogate nonterminal_info
 	for(Rule *it1 = cvector_begin(g.rules); it1 != cvector_end(g.rules); it1 += 1) {
-		VariableInfo vi = {
-			.variable = it1->identifier,
+		NonterminalInfo vi = {
+			.nonterminal = it1->identifier,
 			.firsts = NULL,
 			.nullable = false,
 		};
 
-		if(!variable_info_set_contains(variable_info, vi)) {
-			variable_info_set_insert(&variable_info, vi);
+		if(!nonterminal_info_set_contains(nonterminal_info, vi)) {
+			nonterminal_info_set_insert(&nonterminal_info, vi);
 		}
 	}
 
@@ -61,10 +61,10 @@ void lalr_construct(Grammar g, LR0 lr0) {
 		changed = false;
 
 		for(Rule *it1 = cvector_begin(g.rules); it1 != cvector_end(g.rules); it1 += 1) {
-			VariableInfo vi = variable_info_set_get(variable_info, (VariableInfo){ .variable = it1->identifier });
+			NonterminalInfo vi = nonterminal_info_set_get(nonterminal_info, (NonterminalInfo){ .nonterminal = it1->identifier });
 			bool rhs_all_nullable = true;
 
-			if(vi.variable.tag == TokenType_Invalid || vi.nullable) {
+			if(vi.nonterminal.tag == TokenType_Invalid || vi.nullable) {
 				continue;
 			}
 
@@ -74,9 +74,9 @@ void lalr_construct(Grammar g, LR0 lr0) {
 					rhs_all_nullable = false;
 					break;
 				} else if(it2->tag == TokenType_Identifier) {
-					VariableInfo sub = variable_info_set_get(variable_info, (VariableInfo){ .variable = *it2 });
+					NonterminalInfo sub = nonterminal_info_set_get(nonterminal_info, (NonterminalInfo){ .nonterminal = *it2 });
 
-					if(sub.variable.tag == TokenType_Invalid || !sub.nullable) {
+					if(sub.nonterminal.tag == TokenType_Invalid || !sub.nullable) {
 						rhs_all_nullable = false;
 						break;
 					}
@@ -85,7 +85,7 @@ void lalr_construct(Grammar g, LR0 lr0) {
 
 			if(rhs_all_nullable) {
 				vi.nullable = true;
-				variable_info_set_update(variable_info, vi);
+				nonterminal_info_set_update(nonterminal_info, vi);
 				changed = true;
 			}
 		}
@@ -98,7 +98,7 @@ void lalr_construct(Grammar g, LR0 lr0) {
 		changed = false;
 
 		for(Rule *it1 = cvector_begin(g.rules); it1 != cvector_end(g.rules); it1 += 1) {
-			VariableInfo vi = variable_info_set_get(variable_info, (VariableInfo){ .variable = it1->identifier });
+			NonterminalInfo vi = nonterminal_info_set_get(nonterminal_info, (NonterminalInfo){ .nonterminal = it1->identifier });
 			size_t initial_size = cvector_size(vi.firsts);
 
 			for(Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
@@ -106,9 +106,9 @@ void lalr_construct(Grammar g, LR0 lr0) {
 					token_set_insert(&vi.firsts, *it2);
 					break; // Terminal, no need to check further
 				} else if(it2->tag == TokenType_Identifier) {
-					VariableInfo sub = variable_info_set_get(variable_info, (VariableInfo){ .variable = *it2 });
+					NonterminalInfo sub = nonterminal_info_set_get(nonterminal_info, (NonterminalInfo){ .nonterminal = *it2 });
 
-					if(sub.variable.tag == TokenType_Invalid) {
+					if(sub.nonterminal.tag == TokenType_Invalid) {
 						break;
 					}
 
@@ -124,7 +124,7 @@ void lalr_construct(Grammar g, LR0 lr0) {
 			}
 
 			if(cvector_size(vi.firsts) != initial_size) {
-				variable_info_set_update(variable_info, vi);
+				nonterminal_info_set_update(nonterminal_info, vi);
 				changed = true;
 			}
 		}
@@ -157,9 +157,9 @@ void lalr_construct(Grammar g, LR0 lr0) {
 		for(Transition *it2 = cvector_begin(lr0.transitions); it2 != cvector_end(lr0.transitions); it2 += 1) {
 			if(it1->destination_index == it2->source_index) {
 				if(it2->symbol.tag == TokenType_Identifier) {
-					VariableInfo vi = variable_info_set_get(variable_info, (VariableInfo) { .variable = it2->symbol });
+					NonterminalInfo vi = nonterminal_info_set_get(nonterminal_info, (NonterminalInfo) { .nonterminal = it2->symbol });
 
-					if(vi.nullable && vi.variable.tag != TokenType_Invalid) {
+					if(vi.nullable && vi.nonterminal.tag != TokenType_Invalid) {
 						cvector_push_back(read_graph[cvector_size(read_graph) - 1], it2 - cvector_begin(lr0.transitions));
 					}
 
@@ -262,7 +262,7 @@ void lalr_construct(Grammar g, LR0 lr0) {
 					    break; // Terminals stop backward propagation
 					}
 
-					VariableInfo vi = variable_info_set_get(variable_info, (VariableInfo) { .variable = nt });
+					NonterminalInfo vi = nonterminal_info_set_get(nonterminal_info, (NonterminalInfo) { .nonterminal = nt });
 					if (!vi.nullable) {
 					    // This token is not nullable, so lookaheads cannot pass through it.
 					    // However, we still need to process the s_len = 0 path to link the parent context!
@@ -346,12 +346,12 @@ void lalr_construct(Grammar g, LR0 lr0) {
 		printf("\n");
 	}
 
-	for(VariableInfo *it1 = cvector_begin(variable_info); it1 != cvector_end(variable_info); it1 += 1) {
-		printf("NULLABLE(%.*s) = %s\n", (int) it1->variable.lexeme.length, it1->variable.lexeme.data, it1->nullable ? "true" : "false");
+	for(NonterminalInfo *it1 = cvector_begin(nonterminal_info); it1 != cvector_end(nonterminal_info); it1 += 1) {
+		printf("NULLABLE(%.*s) = %s\n", (int) it1->nonterminal.lexeme.length, it1->nonterminal.lexeme.data, it1->nullable ? "true" : "false");
 	}
 
-	for(VariableInfo *it1 = cvector_begin(variable_info); it1 != cvector_end(variable_info); it1 += 1) {
-		printf("FIRST(%.*s):", (int) it1->variable.lexeme.length, it1->variable.lexeme.data);
+	for(NonterminalInfo *it1 = cvector_begin(nonterminal_info); it1 != cvector_end(nonterminal_info); it1 += 1) {
+		printf("FIRST(%.*s):", (int) it1->nonterminal.lexeme.length, it1->nonterminal.lexeme.data);
 
 		for(Token *it2 = cvector_begin(it1->firsts); it2 != cvector_end(it1->firsts); it2 += 1) {
 			printf(" %.*s", (int) it2->lexeme.length, it2->lexeme.data);
@@ -360,11 +360,11 @@ void lalr_construct(Grammar g, LR0 lr0) {
 		printf("\n");
 	}
 
-	for(VariableInfo *it1 = cvector_begin(variable_info); it1 != cvector_end(variable_info); it1 += 1) {
+	for(NonterminalInfo *it1 = cvector_begin(nonterminal_info); it1 != cvector_end(nonterminal_info); it1 += 1) {
 		cvector_free(it1->firsts);
 	}
 
-	cvector_free(variable_info);
+	cvector_free(nonterminal_info);
 }
 
 static bool token_set_contains(cvector(Token) set, Token t) {
@@ -387,9 +387,9 @@ static void token_set_insert(cvector(Token) *set, Token t) {
 	cvector_push_back(*set, t);
 }
 
-static bool variable_info_set_contains(cvector(VariableInfo) set, VariableInfo vi) {
-	for(VariableInfo *it1 = cvector_begin(set); it1 != cvector_end(set); it1 += 1) {
-		if(token_equals(it1->variable, vi.variable)) {
+static bool nonterminal_info_set_contains(cvector(NonterminalInfo) set, NonterminalInfo vi) {
+	for(NonterminalInfo *it1 = cvector_begin(set); it1 != cvector_end(set); it1 += 1) {
+		if(token_equals(it1->nonterminal, vi.nonterminal)) {
 			return true;
 		}
 	}
@@ -397,9 +397,9 @@ static bool variable_info_set_contains(cvector(VariableInfo) set, VariableInfo v
 	return false;
 }
 
-static void variable_info_set_insert(cvector(VariableInfo) *set, VariableInfo vi) {
-	for(VariableInfo *it1 = cvector_begin(*set); it1 != cvector_end(*set); it1 += 1) {
-		if(token_equals(it1->variable, vi.variable)) {
+static void nonterminal_info_set_insert(cvector(NonterminalInfo) *set, NonterminalInfo vi) {
+	for(NonterminalInfo *it1 = cvector_begin(*set); it1 != cvector_end(*set); it1 += 1) {
+		if(token_equals(it1->nonterminal, vi.nonterminal)) {
 			return;
 		}
 	}
@@ -407,15 +407,15 @@ static void variable_info_set_insert(cvector(VariableInfo) *set, VariableInfo vi
 	cvector_push_back(*set, vi);
 }
 
-static VariableInfo variable_info_set_get(cvector(VariableInfo) set, VariableInfo vi) {
-	for(VariableInfo *it1 = cvector_begin(set); it1 != cvector_end(set); it1 += 1) {
-		if(token_equals(it1->variable, vi.variable)) {
+static NonterminalInfo nonterminal_info_set_get(cvector(NonterminalInfo) set, NonterminalInfo vi) {
+	for(NonterminalInfo *it1 = cvector_begin(set); it1 != cvector_end(set); it1 += 1) {
+		if(token_equals(it1->nonterminal, vi.nonterminal)) {
 			return *it1;
 		}
 	}
 
-	return (VariableInfo) {
-		.variable = {
+	return (NonterminalInfo) {
+		.nonterminal = {
 			.tag = TokenType_Invalid,
 			.lexeme = {
 				.data = NULL,
@@ -427,9 +427,9 @@ static VariableInfo variable_info_set_get(cvector(VariableInfo) set, VariableInf
 	};
 }
 
-static void variable_info_set_update(cvector(VariableInfo) set, VariableInfo vi) {
-	for(VariableInfo *it1 = cvector_begin(set); it1 != cvector_end(set); it1 += 1) {
-		if(token_equals(it1->variable, vi.variable)) {
+static void nonterminal_info_set_update(cvector(NonterminalInfo) set, NonterminalInfo vi) {
+	for(NonterminalInfo *it1 = cvector_begin(set); it1 != cvector_end(set); it1 += 1) {
+		if(token_equals(it1->nonterminal, vi.nonterminal)) {
 			it1->firsts = vi.firsts;
 			it1->nullable = vi.nullable;
 		}

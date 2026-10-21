@@ -52,7 +52,7 @@ Grammar analyzer_analyze(RuleSet raw_rules) {
 	rule_set_iterate(result.rules, rule, {
 		if(!rule_referenced(result.rules, *rule)) {
 			result.start = rule;
-			token_set_insert(&result.variables, rule->identifier);
+			token_set_insert(&result.nonterminals, rule->identifier);
 			break;
 		}
 	});
@@ -93,7 +93,7 @@ static Definition hoist(Grammar *g, Definition d, size_t *position, Token sub_en
 			}
 
 			definition_push_back(&result, sub_identifier);
-			token_set_insert(&g->variables, sub_identifier);
+			token_set_insert(&g->nonterminals, sub_identifier);
 			token_set_insert(&g->dynamic_tokens, sub_identifier);
 		} else if(current_token.tag == TokenType_Single_Literal || current_token.tag == TokenType_Double_Literal) {
 			definition_push_back(&result, current_token);
@@ -101,7 +101,7 @@ static Definition hoist(Grammar *g, Definition d, size_t *position, Token sub_en
 			*position += 1;
 		} else if(current_token.tag == TokenType_Identifier) {
 			definition_push_back(&result, current_token);
-			token_set_insert(&g->variables, current_token);
+			token_set_insert(&g->nonterminals, current_token);
 			*position += 1;
 		} else if(current_token.tag == TokenType_RightBrace ||
 			  current_token.tag == TokenType_RightBracket ||
@@ -247,7 +247,7 @@ static bool rule_referenced(RuleSet rules, RuleSetEntry target) {
 					token_set_insert(&result.terminals, current_token);
 				} else if(current_token.tag == TokenType_Identifier) {
 					printf("%d\n", __LINE__);
-					token_set_insert(&result.variables, current_token);
+					token_set_insert(&result.nonterminals, current_token);
 				} else if(current_token.tag == TokenType_RightBrace ||
 				   	  current_token.tag == TokenType_RightBracket ||
 					  current_token.tag == TokenType_RightParenthesis) {
@@ -285,7 +285,7 @@ static bool rule_referenced(RuleSet rules, RuleSetEntry target) {
 					};
 
 					printf("%d\n", __LINE__);
-					token_set_insert(&result.variables, new_identifier);
+					token_set_insert(&result.nonterminals, new_identifier);
 					printf("%d\n", __LINE__);
 					token_set_insert(&result.dynamic_tokens, new_identifier);
 
@@ -357,7 +357,7 @@ static bool rule_referenced(RuleSet rules, RuleSetEntry target) {
 
 						if(current_rule->definition[k].tag == TokenType_Identifier) {
 					printf("%d\n", __LINE__);
-							token_set_insert(&result.variables, current_rule->definition[k]);
+							token_set_insert(&result.nonterminals, current_rule->definition[k]);
 						} else if(current_rule->definition[k].tag == TokenType_Double_Literal ||
 						   	  current_rule->definition[k].tag == TokenType_Single_Literal) {
 					printf("%d\n", __LINE__);
@@ -375,7 +375,7 @@ static bool rule_referenced(RuleSet rules, RuleSetEntry target) {
 
 						if(current_rule->definition[k].tag == TokenType_Identifier) {
 					printf("%d\n", __LINE__);
-							token_set_insert(&result.variables, current_rule->definition[k]);
+							token_set_insert(&result.nonterminals, current_rule->definition[k]);
 						} else if(current_rule->definition[k].tag == TokenType_Double_Literal ||
 						   	  current_rule->definition[k].tag == TokenType_Single_Literal) {
 					printf("%d\n", __LINE__);

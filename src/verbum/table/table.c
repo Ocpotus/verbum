@@ -42,7 +42,7 @@ void parse_table_delete(ParseTable *t) {
 bool parse_table_populate(ParseTable *table, Grammar *g) {
 	bool result = true;
 
-	if((cvector_size(g->terminals) != (size_t) table->num_terminals) || (cvector_size(g->variables) != (size_t) table->num_non_terminals)) {
+	if((cvector_size(g->terminals) != (size_t) table->num_terminals) || (cvector_size(g->nonterminals) != (size_t) table->num_non_terminals)) {
 		// Error: mismatch grammar and table size
 		return false;
 	}

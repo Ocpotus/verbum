@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "lib/log.c/log.h"
 #include "lib/c-vector/cvector.h"
 
 #include "verbum/lexer/lexer.h"
@@ -14,6 +15,9 @@
 
 
 int main() {
+#ifdef FORGE_RELEASE
+	log_set_quiet(true);
+#endif
 	Lexer *lexer = lexer_new("test/ebnf.ebnf");
 	cvector(RawRule) rules = verbum_parse(lexer);
 	Grammar grammar = analyzer_analyze(rules);
@@ -31,7 +35,7 @@ int main() {
 
 			printf(" -> ");
 
-			if(cvector_size(definition) != 0) {
+			if(!cvector_empty(definition)) {
 				for(Symbol *it2 = cvector_begin(definition); it2 != cvector_end(definition); it2 += 1) {
 					uint32_t mask = it2->mask;
 
@@ -69,28 +73,35 @@ int main() {
 
 			printf(" -> ");
 
-			for(Symbol *it3 = cvector_begin(it2->rule.definitions[it2->rule_index]); it3 != cvector_end(it2->rule.definitions[it2->rule_index]); it3 += 1) {
-				if((size_t) (it3 - cvector_begin(it2->rule.definitions[it2->rule_index])) == it2->dot_pos) {
-					printf("* ");
+			if(!cvector_empty(it2->rule.definitions[it2->rule_index])) {
+				for(size_t i = 0; i < cvector_size(it2->rule.definitions[it2->rule_index]); i += 1) {
+					Symbol s = it2->rule.definitions[it2->rule_index][i];
+
+					if(i == it2->dot_pos) {
+						printf("* ");
+					}
+
+					uint32_t mask = s.mask;
+
+					printf("%.*s", (int) s.lexeme.length, s.lexeme.data);
+
+					if(mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+						printf("%d", s.mask >> 4);
+					}
+
+					printf(" ");
 				}
-
-				uint32_t mask = it3->mask;
-
-				printf("%.*s", (int) it3->lexeme.length, it3->lexeme.data);
-
-				if(mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
-					printf("%d", it3->mask >> 4);
-				}
-
-				printf(" ");
+			} else {
+				printf("λ ");
 			}
 
 			if(it2->dot_pos == cvector_size(it2->rule.definitions[it2->rule_index])) {
-				printf("*");
+				printf("* ");
 			}
 
-			printf(" {");
+			printf("{");
 			printf(" }");
+			printf(" %zu", it2->dot_pos);
 			printf("\n");
 		}
 	}

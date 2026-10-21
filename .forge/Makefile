@@ -44,7 +44,7 @@ RELEASE_LIBS := $(shell find $(LIB_RELEASE_DIR) -type f -name "*.o")
 # Compilation flags
 LINKER_FLAGS :=
 INCLUDE_FLAGS := -I$(INCLUDE_DIR)
-RELEASE_FLAGS := -Wextra -Wall -Werror -Wno-vla -std=c99 -O2 $(LINKER_FLAGS) $(INCLUDE_FLAGS) -DNDEBUG -DLOG_USE_COLOR
+RELEASE_FLAGS := -Wextra -Wall -Werror -Wno-vla -std=c99 -O2 $(LINKER_FLAGS) $(INCLUDE_FLAGS) -DNDEBUG -DLOG_USE_COLOR -DFORGE_RELEASE
 DEBUG_FLAGS := -Wextra -Wall -Wno-vla -std=c99 -g3 $(LINKER_FLAGS) $(INCLUDE_FLAGS) -DLOG_USE_COLOR
 
 # Arguments to be passed when running "make run Args="<arguments>"

@@ -105,7 +105,6 @@ static cvector(Definition) hoist(Grammar *g, cvector(Token) definition, size_t *
 			}
 
 			cvector_free(sub_alternatives);
-
 			definition_push_back(&current, sub_identifier);
 			symbol_set_insert(&g->nonterminals, sub_identifier);
 		} else if(current_token.tag == TokenType_Single_Literal || current_token.tag == TokenType_Double_Literal) {
@@ -213,6 +212,7 @@ static Symbol create_sub_expression_identifier(TokenType tag, Context *context) 
 		// Error
 		break;
 	}
+
 	return result;
 }
 

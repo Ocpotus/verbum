@@ -40,36 +40,9 @@ int main() {
 
 			printf("\n");
 		}
-
-		printf("\n");
 	);
-	
 
-	rule_set_delete(rules);
-	grammar_delete(&grammar);
-	lexer_delete(lexer);
-
-	return 0;
-}
-
-
-	/* for(Rule *it1 = cvector_begin(grammar.rules); it1 != cvector_end(grammar.rules); it1 += 1) {
-		printf("%.*s", (int) it1->identifier.lexeme.length, it1->identifier.lexeme.data);
-
-		printf(" ->");
-		
-		if(cvector_empty(it1->definition)) {
-			printf(" λ");
-		}
-
-		for(Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
-			printf(" %.*s", (int) it2->lexeme.length, it2->lexeme.data);
-		}
-
-		printf("\n");
-	} */
-
-	/* LR0Parser lr0 = lr0_new(grammar);
+	LR0Parser lr0 = lr0_new(grammar);
 
 	printf("@start: %.*s\n", (int) grammar.start->identifier.lexeme.length, grammar.start->identifier.lexeme.data);
 
@@ -79,15 +52,15 @@ int main() {
 		for(LR0Item *it2 = cvector_begin(it1->items); it2 != cvector_end(it1->items); it2 += 1) {
 			printf("\t%.*s -> ", (int) it2->rule.identifier.lexeme.length, it2->rule.identifier.lexeme.data);
 
-			for(Token *it3 = cvector_begin(it2->rule.definition); it3 != cvector_end(it2->rule.definition); it3 += 1) {
-				if((size_t) (it3 - cvector_begin(it2->rule.definition)) == it2->dot_pos) {
+			for(Token *it3 = cvector_begin(it2->rule.definitions[it2->rule_index]); it3 != cvector_end(it2->rule.definitions[it2->rule_index]); it3 += 1) {
+				if((size_t) (it3 - cvector_begin(it2->rule.definitions[it2->rule_index])) == it2->dot_pos) {
 					printf("* ");
 				}
 
 				printf("%.*s ", (int) it3->lexeme.length, it3->lexeme.data);
 			}
 
-			if(it2->dot_pos == cvector_size(it2->rule.definition)) {
+			if(it2->dot_pos == cvector_size(it2->rule.definitions[it2->rule_index])) {
 				printf("*");
 			}
 
@@ -95,9 +68,12 @@ int main() {
 			printf(" }");
 			printf("\n");
 		}
-	} */
+	}
 
-	//LR1Parser lr1 = lr1_new(grammar, lr0);
+	lr0_delete(lr0);
+	rule_set_delete(rules);
+	grammar_delete(&grammar);
+	lexer_delete(lexer);
 
-	//lr1_delete(lr1);
-	//lr0_delete(lr0);
+	return 0;
+}

@@ -52,6 +52,7 @@ Grammar analyzer_analyze(RuleSet raw_rules) {
 	rule_set_iterate(result.rules, rule, {
 		if(!rule_referenced(result.rules, *rule)) {
 			result.start = rule;
+			token_set_insert(&result.variables, rule->identifier);
 			break;
 		}
 	});

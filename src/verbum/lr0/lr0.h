@@ -6,8 +6,35 @@
 #include "../grammar/grammar.h"
 
 
+/*
 typedef struct LR0Item {
 	Rule rule;
+	size_t dot_pos;
+} LR0Item;
+
+typedef struct LR0State {
+	cvector(LR0Item) items;
+} LR0State;
+
+typedef struct LR0Transition {
+	size_t id;
+	size_t source_index;
+	size_t destination_index;
+	Token symbol;
+} LR0Transition;
+
+typedef struct LR0Parser {
+	cvector(LR0Transition) transitions;
+	cvector(LR0State) states;
+} LR0Parser;
+
+LR0Parser lr0_new(Grammar g);
+
+void lr0_delete(LR0Parser lr0);
+*/
+typedef struct LR0Item {
+	RuleSetEntry rule;
+	size_t rule_index;
 	size_t dot_pos;
 } LR0Item;
 

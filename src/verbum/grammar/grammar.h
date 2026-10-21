@@ -4,7 +4,7 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../token_set/token_set.h"
-#include "../rule/rule.h"
+//#include "../rule/rule.h"
 #include "../rule_set/rule_set.h"
 
 

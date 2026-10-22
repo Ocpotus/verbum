@@ -12,6 +12,7 @@
 #include "verbum/rule_set/rule_set.h"
 #include "verbum/definition/definition.h"
 #include "verbum/raw_rule/raw_rule.h"
+#include "verbum/bnf/bnf.h"
 
 
 int main() {
@@ -21,8 +22,9 @@ int main() {
 	Lexer *lexer = lexer_new("test/ebnf.ebnf");
 	cvector(RawRule) rules = verbum_parse(lexer);
 	Grammar grammar = analyzer_analyze(rules);
+	bnf_print(grammar);
 
-	rule_set_iterate(grammar.rules, rule, 
+	/* rule_set_iterate(grammar.rules, rule, 
 		for(Definition *it1 = cvector_begin(rule->definitions); it1 != cvector_end(rule->definitions); it1 += 1) {
 			Definition definition = *it1;
 			uint32_t mask = rule->identifier.mask;
@@ -55,7 +57,7 @@ int main() {
 		}
 	);
 
-	LR0Parser lr0 = lr0_new(grammar);
+	LR0Automaton lr0 = lr0_new(grammar);
 
 	printf("@start: %.*s\n", (int) grammar.start->identifier.lexeme.length, grammar.start->identifier.lexeme.data);
 
@@ -104,10 +106,11 @@ int main() {
 			printf(" %zu", it2->dot_pos);
 			printf("\n");
 		}
-	}
+	} */
 
-	lr0_delete(lr0);
+	/* lr0_delete(lr0);
 	grammar_delete(&grammar);
+	*/
 
 	for(RawRule *it1 = cvector_begin(rules); it1 != cvector_end(rules); it1 += 1) {
 		raw_rule_delete(it1);

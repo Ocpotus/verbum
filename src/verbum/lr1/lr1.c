@@ -26,7 +26,7 @@
  *
  *
  */
-static void lr1_closure(Grammar g, LR1State *s, struct hashmap *store);
+//static void lr1_closure(Grammar g, LR1State *s, struct hashmap *store);
 /* lr1_goto
  *
  * Computes the next state if a token is consumed.
@@ -39,7 +39,7 @@ static void lr1_closure(Grammar g, LR1State *s, struct hashmap *store);
  * RETURNS:
  * 	a newly constructed state
  */
-static LR1State lr1_goto(Grammar g, LR1State *s, Token t, struct hashmap *store);
+/* static LR1State lr1_goto(Grammar g, LR1State *s, Token t, struct hashmap *store);
 
 static void item_delete(LR1Item *i);
 static void state_delete(LR1State *s);
@@ -47,7 +47,7 @@ static bool state_contains(LR1State s, LR1Item i);
 static bool state_equals(LR1State a, LR1State b);
 
 static TokenSet first(Grammar g, Token t, struct hashmap *store);
-int first_compare(const void *a, const void *b, void *udata);
+int first_compare(const void *a, const void *b, void *udata); */
 
 /* bool first_iter(const void *item, void *udata) {
 	const struct user *user = item;

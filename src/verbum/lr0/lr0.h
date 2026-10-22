@@ -1,39 +1,17 @@
 #ifndef VERBUM_LR0_H
 #define VERBUM_LR0_H
 
+#include <stddef.h>
+
 #include "../../lib/c-vector/cvector.h"
 
+#include "../symbol/symbol.h"
+#include "../rule/rule.h"
 #include "../grammar/grammar.h"
 
 
-/*
 typedef struct LR0Item {
 	Rule rule;
-	size_t dot_pos;
-} LR0Item;
-
-typedef struct LR0State {
-	cvector(LR0Item) items;
-} LR0State;
-
-typedef struct LR0Transition {
-	size_t id;
-	size_t source_index;
-	size_t destination_index;
-	Token symbol;
-} LR0Transition;
-
-typedef struct LR0Parser {
-	cvector(LR0Transition) transitions;
-	cvector(LR0State) states;
-} LR0Parser;
-
-LR0Parser lr0_new(Grammar g);
-
-void lr0_delete(LR0Parser lr0);
-*/
-typedef struct LR0Item {
-	RuleSetEntry rule;
 	size_t rule_index;
 	size_t dot_pos;
 } LR0Item;
@@ -49,14 +27,14 @@ typedef struct LR0Transition {
 	Symbol symbol;
 } LR0Transition;
 
-typedef struct LR0Parser {
+typedef struct LR0Automaton {
 	cvector(LR0Transition) transitions;
 	cvector(LR0State) states;
-} LR0Parser;
+} LR0Automaton;
 
-LR0Parser lr0_new(Grammar g);
+LR0Automaton lr0_new(Grammar g);
 
-void lr0_delete(LR0Parser lr0);
+void lr0_delete(LR0Automaton lr0);
 
 
 #endif

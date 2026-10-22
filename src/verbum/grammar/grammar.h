@@ -26,7 +26,7 @@ typedef struct Grammar {
 	RuleSet rules;
 	SymbolSet terminals;
 	SymbolSet nonterminals;
-	const RuleSetEntry *start;
+	const Rule *start;
 } Grammar;
 
 Grammar grammar_new();

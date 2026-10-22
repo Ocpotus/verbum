@@ -10,6 +10,7 @@
 #include "../symbol/symbol.h"
 #include "../definition/definition.h"
 #include "../grammar/grammar.h"
+#include "../rule/rule.h"
 #include "../rule_set/rule_set.h"
 #include "../raw_rule/raw_rule.h"
 
@@ -23,7 +24,7 @@ typedef struct Context {
 	uint32_t num_group;
 } Context;
 
-static bool rule_referenced(RuleSet rules, RuleSetEntry target);
+static bool rule_referenced(RuleSet rules, Rule target);
 static cvector(Definition) hoist(Grammar *g, cvector(Token) body, size_t *position, TokenType sub_end_tag, Context *context);
 static Symbol create_sub_expression_identifier(TokenType tag, Context *context);
 
@@ -216,7 +217,7 @@ static Symbol create_sub_expression_identifier(TokenType tag, Context *context) 
 	return result;
 }
 
-static bool rule_referenced(RuleSet rules, RuleSetEntry target) {
+static bool rule_referenced(RuleSet rules, Rule target) {
 	rule_set_iterate(rules, it1, {
 		for(Definition *it2 = cvector_begin(it1->definitions); it2 != cvector_end(it1->definitions); it2 += 1) {
 			for(Symbol *it3 = cvector_begin(*it2); it3 != cvector_end(*it2); it3 += 1) {

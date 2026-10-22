@@ -9,18 +9,8 @@
 
 #include "../symbol/symbol.h"
 #include "../definition/definition.h"
+#include "../rule/rule.h"
 
-
-/* RuleSetEntry
- *
- * MEMBERS:
- * 	definitions: every alternative for the rule
- * 	identifier: rule name, its mask holds the rule's metadata (see SymbolMask)
- */
-typedef struct RuleSetEntry {
-	cvector(Definition) definitions;
-	Symbol identifier;
-} RuleSetEntry;
 
 typedef struct hashmap *RuleSet;
 
@@ -54,11 +44,11 @@ bool rule_set_contains(RuleSet set, Symbol identifier, Definition definition);
  * 	definition: definition to append
  *
  * RETURNS:
- * 	the stored RuleSetEntry, NULL on failure
+ * 	the stored Rule, NULL on failure
  */
-const RuleSetEntry *rule_set_insert(RuleSet *set, Symbol identifier, Definition definition);
+const Rule *rule_set_insert(RuleSet *set, Symbol identifier, Definition definition);
 
-RuleSetEntry rule_set_get(RuleSet set, Symbol identifier);
+Rule rule_set_get(RuleSet set, Symbol identifier);
 
 bool rule_set_remove(RuleSet *set, Symbol identifier);
 void rule_set_update(RuleSet *set, Symbol identifier, cvector(Definition) definitions);
@@ -79,13 +69,13 @@ do {\
 	size_t rule_set_iterate_iter = 0; \
 	void *rule_set_iterate_data; \
 	while(hashmap_iter(set, &rule_set_iterate_iter, &rule_set_iterate_data)) {\
-		const RuleSetEntry *name = rule_set_iterate_data;\
+		const Rule *name = rule_set_iterate_data;\
 		__VA_ARGS__ \
 	}\
 \
 } while(0)
 
-void rule_set_entry_push_back(RuleSetEntry *rse, Definition d);
+void rule_push_back(Rule *r, Definition d);
 
 
 #endif

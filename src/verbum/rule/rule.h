@@ -1,29 +1,24 @@
 #ifndef VERBUM_RULE_H
 #define VERBUM_RULE_H
 
-#include <stdbool.h>
+#include "../../lib/c-vector/cvector.h"
 
-#include "../token/token.h"
-
+#include "../symbol/symbol.h"
 #include "../definition/definition.h"
 
 
 /* Rule
  *
- * Contains information for a particular substitution
- *
  * MEMBERS:
- * 	identifier: rule name
- * 	defintion: what does the rule turn into
+ * 	definitions: every alternative for the rule
+ * 	identifier: rule name, its mask holds the rule's metadata (see SymbolMask)
  */
 typedef struct Rule {
-	Token identifier;
-	Definition definition;
-	bool nullable;
+	cvector(Definition) definitions;
+	Symbol identifier;
 } Rule;
 
-
-void rule_delete(Rule);
+void rule_push_back(Rule *r, Definition d);
 
 
 #endif

@@ -8,7 +8,7 @@
 #include "../token_set/token_set.h"
 
 
-typedef struct LR1Item {
+/* typedef struct LR1Item {
 	LR0Item lr0;
 	Token lookahead;
 } LR1Item;
@@ -32,6 +32,6 @@ typedef struct LR1Parser {
 LR1Parser lr1_new(Grammar g, LR0Parser lr0);
 
 void lr1_delete(LR1Parser lr1);
-
+*/
 
 #endif

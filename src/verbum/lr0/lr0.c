@@ -1,11 +1,11 @@
-#include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
 
 #include "../../lib/log.c/log.h"
 #include "../../lib/c-vector/cvector.h"
 
-#include "../definition/definition.h"
+#include "../rule/rule.h"
 #include "../rule_set/rule_set.h"
 #include "../grammar/grammar.h"
 #include "../symbol/symbol.h"
@@ -45,8 +45,8 @@ static bool state_contains(LR0State s, LR0Item i);
 static bool state_equals(LR0State a, LR0State b);
 
 
-LR0Parser lr0_new(Grammar g) {
-	LR0Parser result = {
+LR0Automaton lr0_new(Grammar g) {
+	LR0Automaton result = {
 		.states = NULL,
 		.transitions = NULL,
 	};
@@ -59,7 +59,6 @@ LR0Parser lr0_new(Grammar g) {
 	};
 	SymbolSet symbol_sets[] = { g.terminals, g.nonterminals };
 	size_t transition_id = 0;
-	size_t goto_count = 0;
 
 	cvector_push_back(s0.items, i0);
 	lr0_closure(g, &s0);
@@ -109,7 +108,7 @@ LR0Parser lr0_new(Grammar g) {
 	return result;
 }
 
-void lr0_delete(LR0Parser lr0) {
+void lr0_delete(LR0Automaton lr0) {
 	for(LR0State *it1 = cvector_begin(lr0.states); it1 != cvector_end(lr0.states); it1 += 1) {
 		state_delete(it1);
 	}
@@ -132,11 +131,11 @@ static void lr0_closure(Grammar g, LR0State *s) {
 
 		// Nonterminal is next add all items with dot_pos == 0
 		if(symbol_set_contains(g.nonterminals, symbol)) {
-			RuleSetEntry rs = rule_set_get(g.rules, symbol);
+			Rule r = rule_set_get(g.rules, symbol);
 			
-			for(size_t j = 0; j < cvector_size(rs.definitions); j += 1) {
+			for(size_t j = 0; j < cvector_size(r.definitions); j += 1) {
 				LR0Item ni = {
-					.rule = rs,
+					.rule = r,
 					.rule_index = j,
 					.dot_pos = 0,
 				};

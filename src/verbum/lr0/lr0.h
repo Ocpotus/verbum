@@ -22,8 +22,8 @@ typedef struct LR0State {
 
 typedef struct LR0Transition {
 	size_t id;
-	size_t source_index;
-	size_t destination_index;
+	size_t source;
+	size_t destination;
 	Symbol symbol;
 } LR0Transition;
 

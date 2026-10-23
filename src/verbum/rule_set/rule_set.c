@@ -103,5 +103,7 @@ static int rule_set_compare(const void *a, const void *b, void *udata) {
 	const Rule *ua = a;
 	const Rule *ub = b;
 
+	(void) udata;
+
 	return !symbol_equals(ua->identifier, ub->identifier);
 }

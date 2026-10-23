@@ -11,6 +11,15 @@
 /* ParseTable API
  */
 
+typedef enum ParseTableActionMask {
+	ParseTableActionMask_None = 0x0 << 0,
+	ParseTableActionMask_Error = 0x1 << 0,
+	ParseTableActionMask_Accept = 0x1 << 1,
+	ParseTableActionMask_Shift = 0x1 << 2,
+	ParseTableActionMask_Reduce = 0x1 << 3,
+} ParseTableActionMask;
+
+
 /* Simple alias
  */
 typedef uint32_t ParseTableGoto;
@@ -45,7 +54,7 @@ static const int32_t ActionAccept = INT32_MAX;
 /* Returns the action type
  *
  */
-inline ParseTableActionType parse_table_action_type(ParseTableAction action) {
+/* inline ParseTableActionType parse_table_action_type(ParseTableAction action) {
 	if(action < 0) {
 		if(action == ActionError) {
 			return ParseTableActionType_Error;
@@ -59,7 +68,7 @@ inline ParseTableActionType parse_table_action_type(ParseTableAction action) {
 
 		return ParseTableActionType_Shift;
 	}
-}
+} */
 
 /* ParseTable
  * 	The ParseTable contains all the combinations that a parser can be in
@@ -75,14 +84,14 @@ inline ParseTableActionType parse_table_action_type(ParseTableAction action) {
  *
  *
  */
-typedef struct ParseTable {
+/* typedef struct ParseTable {
 	ParseTableAction *action_table; // 2D array: [num_states][num_terminals]
 	ParseTableGoto *goto_table;     // 2D array: [num_states][num_non_terminals]
 
 	uint32_t num_states;
 	uint32_t num_terminals;
 	uint32_t num_non_terminals;
-} ParseTable;
+} ParseTable; */
 
 /* table_new
  *
@@ -93,11 +102,11 @@ typedef struct ParseTable {
  * 	newly constructed ParseTable
  *
  */
-ParseTable parse_table_new(uint32_t num_states, uint32_t num_terminals, uint32_t num_non_terminals);
+/* ParseTable parse_table_new(uint32_t num_states, uint32_t num_terminals, uint32_t num_non_terminals);
 
 bool parse_table_populate(ParseTable *table, Grammar *g);
 
-void parse_table_delete(ParseTable *t);
+void parse_table_delete(ParseTable *t); */
 
 
 /* parse_table_action_at
@@ -106,7 +115,7 @@ void parse_table_delete(ParseTable *t);
  * 	Gets the element at the specified coordinates
  *
  */
-inline ParseTableAction parse_table_action_at(ParseTable *t, uint32_t row, uint32_t column);
+//inline ParseTableAction parse_table_action_at(ParseTable *t, uint32_t row, uint32_t column);
 
 /* parse_table_goto_at
  *
@@ -114,7 +123,7 @@ inline ParseTableAction parse_table_action_at(ParseTable *t, uint32_t row, uint3
  * 	Gets the element at the specified coordinates
  *
  */
-inline ParseTableGoto parse_table_goto_at(ParseTable *t, uint32_t row, uint32_t column);
+//inline ParseTableGoto parse_table_goto_at(ParseTable *t, uint32_t row, uint32_t column);
 
 /* parse_table_action_at
  *
@@ -122,9 +131,9 @@ inline ParseTableGoto parse_table_goto_at(ParseTable *t, uint32_t row, uint32_t 
  * 	Gets the element at the specified coordinates
  *
  */
-inline ParseTableAction parse_table_action_at(ParseTable *t, uint32_t row, uint32_t column) {
+/* inline ParseTableAction parse_table_action_at(ParseTable *t, uint32_t row, uint32_t column) {
 	return t->action_table[(row * (t->num_terminals + 1)) + column];
-}
+} */
 
 /* parse_table_goto_at
  *
@@ -132,9 +141,9 @@ inline ParseTableAction parse_table_action_at(ParseTable *t, uint32_t row, uint3
  * 	Gets the element at the specified coordinates
  *
  */
-inline ParseTableGoto parse_table_goto_at(ParseTable *t, uint32_t row, uint32_t column) {
+/* inline ParseTableGoto parse_table_goto_at(ParseTable *t, uint32_t row, uint32_t column) {
 	return t->goto_table[(row * t->num_non_terminals) + column];
-}
+} */
 
 
 #endif

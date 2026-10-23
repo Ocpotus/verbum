@@ -145,7 +145,7 @@ static cvector(Definition) hoist(Grammar *g, cvector(Token) definition, size_t *
 	return result;
 }
 
-static uint32_t classify_sub_expression(TokenType tag, Context *context) {
+/* static uint32_t classify_sub_expression(TokenType tag, Context *context) {
 	// Lowest 4 bits are metadata flags, the Nth index lives in the remaining 28 bits
 	const uint32_t offset = 4;
 	uint32_t result = SymbolMask_None;
@@ -172,7 +172,7 @@ static uint32_t classify_sub_expression(TokenType tag, Context *context) {
 	}
 
 	return result;
-}
+} */
 
 static Symbol create_sub_expression_identifier(TokenType tag, Context *context) {
 	Symbol result = {

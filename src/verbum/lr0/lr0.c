@@ -53,14 +53,21 @@ LR0Automaton lr0_new(Grammar g) {
 	LR0State s0 = {
 		.items = NULL,
 	};
-	LR0Item i0 = {
-		.dot_pos = 0,
-		.rule = *g.start,
-	};
 	SymbolSet symbol_sets[] = { g.terminals, g.nonterminals };
 	size_t transition_id = 0;
 
-	cvector_push_back(s0.items, i0);
+	// Every alternative of the start rule is a kernel item
+	for(size_t i = 0; i < cvector_size(g.start->definitions); i += 1) {
+		LR0Item i0 = {
+			.dot_pos = 0,
+			.rule = *g.start,
+			.rule_index = i,
+		};
+
+		cvector_push_back(s0.items, i0);
+	}
+
+
 	lr0_closure(g, &s0);
 	cvector_push_back(result.states, s0);
 
@@ -94,8 +101,8 @@ LR0Automaton lr0_new(Grammar g) {
 
 					t = (LR0Transition) {
 						.id = transition_id,
-						.source_index = i,
-						.destination_index = destination_index,
+						.source = i,
+						.destination = destination_index,
 						.symbol = *it1,
 					};
 					transition_id += 1;

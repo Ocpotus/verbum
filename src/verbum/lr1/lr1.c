@@ -1,255 +1,152 @@
+#include <stddef.h>
+#include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
-#include "../../lib/hashmap.c/hashmap.h"
-#include "../../lib/log.c/log.h"
 #include "../../lib/c-vector/cvector.h"
 
 #include "../memory/memory.h"
-#include "../lr0/lr0.h"
+#include "../symbol/symbol.h"
 #include "../grammar/grammar.h"
-#include "../token/token.h"
-#include "../rule/rule.h"
-#include "../token_set/token_set.h"
+#include "../lr0/lr0.h"
 
 #include "lr1.h"
 
 
-/* lr1_closure
- *
- * Computes implicit items in a State.
- * In short if an Item has a dot preceding a nonterminal it gathers all
- * Rules with that nonterminal as the identifier.
- *
- * PARAMETERS:
- * 	g: grammar to act on
- * 	s: current state
- *
- *
- */
-//static void lr1_closure(Grammar g, LR1State *s, struct hashmap *store);
-/* lr1_goto
- *
- * Computes the next state if a token is consumed.
- *
- * PARAMETERS:
- * 	g: the grammar to act on
- * 	s: the current state
- * 	t: the token used to determine the next state
- *
- * RETURNS:
- * 	a newly constructed state
- */
-/* static LR1State lr1_goto(Grammar g, LR1State *s, Token t, struct hashmap *store);
-
-static void item_delete(LR1Item *i);
-static void state_delete(LR1State *s);
-static bool state_contains(LR1State s, LR1Item i);
-static bool state_equals(LR1State a, LR1State b);
-
-static TokenSet first(Grammar g, Token t, struct hashmap *store);
-int first_compare(const void *a, const void *b, void *udata); */
-
-/* bool first_iter(const void *item, void *udata) {
-	const struct user *user = item;
-	printf("%s (age=%d)\n", user->name, user->age);
-	return true;
-} */
-/*
-uint64_t first_hash(const void *item, uint64_t seed0, uint64_t seed1);
-
-typedef struct TokenSetFirstStore {
-	Token symbol;
-	TokenSet set;
-} TokenSetFirstStore;
+static const size_t NotFound = SIZE_MAX;
 
 
-LR1Parser lr1_new(Grammar g, LR0Parser lr0) {
-	log_debug("ENTERING %s", __FUNCTION__);
-	LR1Parser result = {
+LR1Automaton lr1_new(Grammar g, LR0Automaton lr0) {
+	LR1Automaton result = {
 		.states = NULL,
 		.transitions = NULL,
+		.terminals = NULL,
+		.word_count = 0,
 	};
-	LR1State s0 = {
-		.items = NULL,
-	};
-	LR1Item i0 = {
-		.lr0 = lr0.states[0].items[0],
-		.lookahead = (Token) {
-			.lexeme = (Lexeme) {
-				.data = NULL,
-				.length = 0,
-			},
-			.tag = TokenType_EOF,
-		},
-	};
-	cvector(Token) tokens = NULL;
-	size_t transition_id = 0;
 
-	cvector_push_back(s0.items, i0);
+	symbol_set_iterate(g.terminals, it1, {
+		cvector_push_back(result.terminals, *it1);
+	});
 
-	for(Token *it = cvector_begin(g.terminals); it != cvector_end(g.terminals); it += 1) {
-		token_set_insert(&tokens, *it);
-	}
+	// One extra bit for the end of input
+	result.word_count = (lr1_end(&result) + 1 + 63) / 64;
 
-	for(Token *it = cvector_begin(g.nonterminals); it != cvector_end(g.nonterminals); it += 1) {
-		token_set_insert(&tokens, *it);
-	}
+	for(LR0State *it1 = cvector_begin(lr0.states); it1 != cvector_end(lr0.states); it1 += 1) {
+		LR1State s = lr1_state_new();
 
-	struct hashmap *store = hashmap_new_with_allocator(memory_new, memory_resize, memory_delete, sizeof(TokenSetFirstStore),
-			0, 0, 0, first_hash, first_compare, NULL, NULL);
-	lr1_closure(g, &s0, store);
-	cvector_push_back(result.states, s0);
-
-	// Compute all the states and transitions
-	for(size_t i = 0; i < cvector_size(result.states); i += 1) {
-		for(Token *it1 = cvector_begin(tokens); it1 < cvector_end(tokens); it1 += 1) {
-			LR1State *source = &result.states[i];
-			LR1State ns = lr1_goto(g, source, *it1, store);
-
-			if(cvector_size(ns.items) > 0) {
-				bool found = false;
-				LR1Transition t = { 0 };
-				size_t destination_index = 0;
-
-				for(size_t j = 0; j < cvector_size(result.states); j += 1) {
-					if(state_equals(ns, result.states[j])) {
-						found = true;
-						break;
-					}
-				}
-
-				if(!found) {
-					destination_index = cvector_size(result.states);
-					cvector_push_back(result.states, ns);
-				} else {
-					cvector_free(ns.items);
-				}
-
-				t = (LR1Transition) {
-					.id = transition_id,
-					.source_index = i,
-					.destination_index = destination_index,
-					.symbol = *it1,
-				};
-				transition_id += 1;
-				cvector_push_back(result.transitions, t);
-				log_warn("LENGTH OF TRANSITIONS: %zu", cvector_size(result.transitions));
-			}
+		for(LR0Item *it2 = cvector_begin(it1->items); it2 != cvector_end(it1->items); it2 += 1) {
+			cvector_push_back(s.items, lr1_item_new(*it2, NULL));
 		}
+
+		cvector_push_back(result.states, s);
 	}
 
-	cvector_free(tokens);
-	log_debug("EXITING %s", __FUNCTION__);
+	for(LR0Transition *it1 = cvector_begin(lr0.transitions); it1 != cvector_end(lr0.transitions); it1 += 1) {
+		LR1Transition t = {
+			.id = it1->id,
+			.source = it1->source,
+			.destination = it1->destination,
+			.symbol = it1->symbol,
+		};
+
+		cvector_push_back(result.transitions, t);
+	}
 
 	return result;
 }
 
-void lr1_delete(LR1Parser lr1) {
+void lr1_delete(LR1Automaton lr1) {
 	for(LR1State *it1 = cvector_begin(lr1.states); it1 != cvector_end(lr1.states); it1 += 1) {
-		state_delete(it1);
+		lr1_state_delete(it1);
 	}
 
 	cvector_free(lr1.states);
 	cvector_free(lr1.transitions);
+	cvector_free(lr1.terminals);
 }
 
-static void lr1_closure(Grammar g, LR1State *s, struct hashmap *store) {
-	log_debug("COMPUTING %s for %p", __FUNCTION__, s);
-
-	for(size_t i = 0; i < cvector_size(s->items); i += 1) {
-		LR1Item item = s->items[i];
-
-		if(item.lr0.dot_pos >= cvector_size(item.lr0.rule.definition)) {
-			continue;
-		}
-
-		Token token = item.lr0.rule.definition[item.lr0.dot_pos];
-
-		if(token.tag == TokenType_Identifier) {
-			// Since the check earlier we are guaranteed to not go out of bounds
-			// Get first set of symbol after current position
-			printf("FIRST FOR ITERATION %zu %.*s\n", i, (int) token.lexeme.length, token.lexeme.data);
-			TokenSet first_set = first(g,
-			item.lr0.rule.definition[item.lr0.dot_pos + 1 > cvector_size(item.lr0.rule.definition) ? item.lr0.dot_pos + 1 : item.lr0.dot_pos], store);
-			// Default lookahead (inherit) token_set_insert(&first_set, item.lookahead);
-
-			for(Rule *it2 = cvector_begin(g.rules); it2 != cvector_end(g.rules); it2 += 1) {
-				if(token_equals(it2->identifier, token)) {
-					for(Token *it3 = cvector_begin(first_set); it3 != cvector_end(first_set); it3 += 1) {
-						LR1Item candidate = {
-							.lr0 = (LR0Item) {
-								.dot_pos = 0,
-								.rule = *it2,
-							},
-							.lookahead = *it3,
-						};
-
-						if(!state_contains(*s, candidate)) {
-							cvector_push_back(s->items, candidate);
-						}
-					}
-				}
-			}
-
-			token_set_delete(first_set);
+size_t lr1_terminal_index(LR1Automaton *a, Symbol s) {
+	for(size_t i = 0; i < cvector_size(a->terminals); i += 1) {
+		if(symbol_equals(a->terminals[i], s)) {
+			return i;
 		}
 	}
+
+	return NotFound;
 }
 
-static LR1State lr1_goto(Grammar g, LR1State *s, Token t, struct hashmap *store) {
-	log_debug("COMPUTING %s for %p", __FUNCTION__, s);
+// Item
+LR1Item lr1_item_new(LR0Item lr0, LookaheadSet lookahead) {
+	return (LR1Item) {
+		.lr0 = lr0,
+		.lookahead = lookahead,
+	};
+}
 
-	LR1State result = { 
+LR1Item lr1_item_copy(LR1Automaton *a, LR1Item item) {
+	return lr1_item_new(item.lr0, lr1_lookahead_copy(a, item.lookahead));
+}
+
+void lr1_item_delete(LR1Item *item) {
+	// The rule is borrowed from the grammar, only the lookahead is owned
+	lr1_lookahead_delete(&item->lookahead);
+}
+
+bool lr1_item_core_equals(LR0Item a, LR0Item b) {
+	// Rules are unique per identifier so their definitions identify them
+	return a.rule.definitions == b.rule.definitions && a.rule_index == b.rule_index && a.dot_pos == b.dot_pos;
+}
+
+bool lr1_item_equals(LR1Automaton *a, LR1Item x, LR1Item y) {
+	return lr1_item_core_equals(x.lr0, y.lr0) && lr1_lookahead_equals(a, x.lookahead, y.lookahead);
+}
+
+// State
+LR1State lr1_state_new() {
+	return (LR1State) {
 		.items = NULL,
 	};
+}
 
-	for(size_t i = 0; i < cvector_size(s->items); i += 1) {
-		LR1Item current = s->items[i];
+LR1State lr1_state_copy(LR1Automaton *a, LR1State state) {
+	LR1State result = lr1_state_new();
 
-		if(current.lr0.dot_pos < cvector_size(current.lr0.rule.definition)) {
-			Token nt = current.lr0.rule.definition[current.lr0.dot_pos];
-
-			if(token_equals(t, nt)) {
-				LR1Item ni = {
-					.lr0 = {
-						.dot_pos = current.lr0.dot_pos + 1,
-						.rule = current.lr0.rule,
-					},
-					.lookahead = current.lookahead,
-				};
-
-				cvector_push_back(result.items, ni);
-			}
-		}
-	}
-
-	if(cvector_size(result.items) > 0) {
-		lr1_closure(g, &result, store);
+	for(LR1Item *it1 = cvector_begin(state.items); it1 != cvector_end(state.items); it1 += 1) {
+		cvector_push_back(result.items, lr1_item_copy(a, *it1));
 	}
 
 	return result;
 }
 
-// Helper functions
-static bool item_equals(LR1Item a, LR1Item b) {
-	if(a.lr0.dot_pos != b.lr0.dot_pos) {
+void lr1_state_delete(LR1State *state) {
+	for(LR1Item *it1 = cvector_begin(state->items); it1 != cvector_end(state->items); it1 += 1) {
+		lr1_item_delete(it1);
+	}
+
+	cvector_free(state->items);
+	state->items = NULL;
+}
+
+size_t lr1_state_find(LR1State state, LR0Item core) {
+	for(size_t i = 0; i < cvector_size(state.items); i += 1) {
+		if(lr1_item_core_equals(state.items[i].lr0, core)) {
+			return i;
+		}
+	}
+
+	return NotFound;
+}
+
+bool lr1_state_equals(LR1Automaton *a, LR1State x, LR1State y) {
+	if(cvector_size(x.items) != cvector_size(y.items)) {
 		return false;
 	}
 
-	if(cvector_size(a.lr0.rule.definition) != cvector_size(b.lr0.rule.definition)) {
-		return false;
-	}
+	// Cores are unique within a state so matching by core is enough
+	for(LR1Item *it1 = cvector_begin(x.items); it1 != cvector_end(x.items); it1 += 1) {
+		size_t i = lr1_state_find(y, it1->lr0);
 
-	if(!token_equals(a.lr0.rule.identifier, b.lr0.rule.identifier)) {
-		return false;
-	}
-
-	if(!token_equals(a.lookahead, b.lookahead)) {
-		return false;
-	}
-
-	for(size_t i = 0; i < cvector_size(a.lr0.rule.definition); i += 1) {
-		if(!token_equals(a.lr0.rule.definition[i], b.lr0.rule.definition[i])) {
+		if(i == NotFound || !lr1_lookahead_equals(a, it1->lookahead, y.items[i].lookahead)) {
 			return false;
 		}
 	}
@@ -257,36 +154,98 @@ static bool item_equals(LR1Item a, LR1Item b) {
 	return true;
 }
 
-static void item_delete(LR1Item *i) {
-	token_delete(i->lr0.rule.identifier);
+// LookaheadSet
+LookaheadSet lr1_lookahead_new(LR1Automaton *a) {
+	LookaheadSet result = memory_new(a->word_count * sizeof(uint64_t));
 
-	for(Token *it1 = cvector_begin(i->lr0.rule.definition); it1 != cvector_end(i->lr0.rule.definition); it1 += 1) {
-		token_delete(*it1);
+	memset(result, 0, a->word_count * sizeof(uint64_t));
+
+	return result;
+}
+
+LookaheadSet lr1_lookahead_copy(LR1Automaton *a, LookaheadSet set) {
+	if(set == NULL) {
+		return set;
 	}
+
+	return memory_copy(set, a->word_count * sizeof(uint64_t));
 }
 
-static void state_delete(LR1State *s) {
-	cvector_free(s->items);
+void lr1_lookahead_delete(LookaheadSet *set) {
+	memory_delete(*set);
+	*set = NULL;
 }
 
-static bool state_contains(LR1State s, LR1Item i) {
-	for(LR1Item *it = cvector_begin(s.items); it != cvector_end(s.items); it += 1) {
-		if(item_equals(*it, i)) {
+bool lr1_lookahead_contains(LookaheadSet set, size_t terminal) {
+	if(set == NULL) {
+		return true;
+	}
+
+	return (set[terminal / 64] >> (terminal % 64)) & 1;
+}
+
+bool lr1_lookahead_insert(LookaheadSet *set, size_t terminal) {
+	if(*set == NULL || terminal == NotFound) {
+		return false;
+	}
+
+	uint64_t bit = (uint64_t) 1 << (terminal % 64);
+	bool result = !((*set)[terminal / 64] & bit);
+
+	(*set)[terminal / 64] |= bit;
+
+	return result;
+}
+
+bool lr1_lookahead_union(LR1Automaton *a, LookaheadSet *dst, LookaheadSet src) {
+	if(*dst == NULL) {
+		return false;
+	}
+
+	// Deleting leaves dst NULL, the wildcard
+	if(src == NULL) {
+		lr1_lookahead_delete(dst);
+
+		return true;
+	}
+
+	bool result = false;
+
+	for(size_t i = 0; i < a->word_count; i += 1) {
+		uint64_t merged = (*dst)[i] | src[i];
+
+		result |= merged != (*dst)[i];
+		(*dst)[i] = merged;
+	}
+
+	return result;
+}
+
+bool lr1_lookahead_intersects(LR1Automaton *a, LookaheadSet x, LookaheadSet y) {
+	if(x == NULL) {
+		return y == NULL || !lr1_lookahead_empty(a, y);
+	}
+
+	if(y == NULL) {
+		return !lr1_lookahead_empty(a, x);
+	}
+
+	for(size_t i = 0; i < a->word_count; i += 1) {
+		if(x[i] & y[i]) {
 			return true;
 		}
 	}
-	
+
 	return false;
 }
 
-static bool state_equals(LR1State a, LR1State b) {
-	if(cvector_size(a.items) != cvector_size(b.items)) {
+bool lr1_lookahead_empty(LR1Automaton *a, LookaheadSet set) {
+	if(set == NULL) {
 		return false;
 	}
 
-	// Iterate by index because need to operate on both vectors
-	for(size_t i = 0; i < cvector_size(a.items); i += 1) {
-		if(!state_contains(b, a.items[i])) {
+	for(size_t i = 0; i < a->word_count; i += 1) {
+		if(set[i] != 0) {
 			return false;
 		}
 	}
@@ -294,71 +253,10 @@ static bool state_equals(LR1State a, LR1State b) {
 	return true;
 }
 
-static TokenSet first(Grammar g, Token t, struct hashmap *store) {
-	//log_debug("COMPUTING %s for %.*s", __FUNCTION__, (int) t.lexeme.length, t.lexeme.data);
-	TokenSet result = NULL;
-	const TokenSetFirstStore *set = hashmap_get(store,  &(TokenSetFirstStore) { .symbol = t });
-
-	// If already calculated exit
-	if(set != NULL) {
-		return set->set;
+bool lr1_lookahead_equals(LR1Automaton *a, LookaheadSet x, LookaheadSet y) {
+	if(x == NULL || y == NULL) {
+		return x == y;
 	}
 
-	result = token_set_new();
-	bool can_be_empty = true;
-
-	if(t.tag == TokenType_Identifier) {
-		for(Rule *it1 = cvector_begin(g.rules); it1 != cvector_end(g.rules); it1 += 1) {
-			if(token_equals(it1->identifier, t)) {
-				for(Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
-					if(it2->tag != TokenType_Identifier) {
-						token_set_insert(&result, *it2);
-						can_be_empty = false;
-						break;
-					}
-					// Have to compute firsts for the non-terminal
-					TokenSet sub = first(g, *it2, store);
-					//printf("FINISHED CALCUALTE SUB FOR %.*s\n", (int) it2->lexeme.length, it2->lexeme.data);
-					bool sub_has_epsilon = false;
-					for(Token *it3 = cvector_begin(sub); it3 != cvector_end(sub); it3 += 1) {
-						if(it3->tag == TokenType_Invalid) { // Assuming TokenType_Invalid or a dedicated epsilon token
-							sub_has_epsilon = true;
-						} else {
-							token_set_insert(&result, *it3);
-						}
-					}
-
-					// If this non-terminal cannot derive epsilon, stop here
-					if(!sub_has_epsilon) {
-						can_be_empty = false;
-						break;
-					}
-				}
-
-				// If all symbols in the definition could derive epsilon, add epsilon to result
-				if(can_be_empty) {
-				    Token lambda = { .lexeme = { .data = NULL, .length = 0 }, .tag = TokenType_Invalid };
-				    token_set_insert(&result, lambda);
-				}
-
-			}
-		}
-	} else {
-		token_set_insert(&result, t);
-	}
-
-	hashmap_set(store, &(TokenSetFirstStore) { .symbol = t, .set = result });
-
-	return result;
+	return memcmp(x, y, a->word_count * sizeof(uint64_t)) == 0;
 }
-
-int first_compare(const void *a, const void *b, void *udata) {
-	const struct TokenSetFirstStore *ua = a;
-	const struct TokenSetFirstStore *ub = b;
-	return token_equals(ua->symbol, ub->symbol);
-}
-
-uint64_t first_hash(const void *item, uint64_t seed0, uint64_t seed1) {
-	const struct TokenSetFirstStore *first = item;
-	return hashmap_sip(first->symbol.lexeme.data, first->symbol.lexeme.length, seed0, seed1);
-} */

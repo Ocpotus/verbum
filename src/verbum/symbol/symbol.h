@@ -95,6 +95,13 @@ bool symbol_set_contains(SymbolSet set, Symbol t);
  */
 bool symbol_set_insert(SymbolSet *set, Symbol t);
 
+size_t symbol_set_size(SymbolSet set);
+
+size_t symbol_set_index(SymbolSet set, Symbol symbol, bool *found);
+
+static inline bool symbol_is_nullable(Symbol s) {
+	return s.mask & (SymbolMask_Optional | SymbolMask_Repetition);
+}
 
 /* symbol_set_iterate
  *

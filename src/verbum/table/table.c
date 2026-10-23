@@ -12,7 +12,7 @@
 
 //
 // (row * width) + col
-ParseTable parse_table_new(uint32_t num_states, uint32_t num_terminals, uint32_t num_non_terminals) {
+/* ParseTable parse_table_new(uint32_t num_states, uint32_t num_terminals, uint32_t num_non_terminals) {
 	ParseTable result = {
 		.num_states = num_states,
 		.num_terminals = num_terminals,
@@ -49,4 +49,4 @@ bool parse_table_populate(ParseTable *table, Grammar *g) {
 
 
 	return result;
-}
+} */

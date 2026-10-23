@@ -43,5 +43,7 @@ static int token_set_compare(const void *a, const void *b, void *udata) {
 	const Token *ua = a;
 	const Token *ub = b;
 
+	(void) udata;
+
 	return !token_equals(*ua, *ub);
 }

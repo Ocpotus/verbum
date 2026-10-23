@@ -61,6 +61,27 @@ bool symbol_set_insert(SymbolSet *set, Symbol t) {
 	return hashmap_set(*set, &t) != NULL;
 }
 
+size_t symbol_set_size(SymbolSet set) {
+	return hashmap_count(set);
+}
+
+size_t symbol_set_index(SymbolSet set, Symbol symbol, bool *found) {
+	size_t result = 0;
+
+	symbol_set_iterate(set, it1, {
+		if(symbol_equals(*it1, symbol)) {
+			*found = true;
+			return result;
+		}
+
+		result += 1;
+	});
+
+	*found = false;
+
+	return result;
+}
+
 static uint64_t symbol_set_hash(const void *item, uint64_t seed0, uint64_t seed1) {
 	const Symbol *symbol = item;
 
@@ -70,6 +91,8 @@ static uint64_t symbol_set_hash(const void *item, uint64_t seed0, uint64_t seed1
 static int symbol_set_compare(const void *a, const void *b, void *udata) {
 	const Symbol *ua = a;
 	const Symbol *ub = b;
+
+	(void) udata;
 
 	return !symbol_equals(*ua, *ub);
 }

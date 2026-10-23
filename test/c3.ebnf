@@ -1,0 +1,274 @@
+translation_unit = external_declaration | translation_unit, external_declaration ;
+external_declaration = function_definition | declaration ;
+function_definition = declaration_specifiers, declarator, [declaration_list], compound_statement ;
+declaration_list = declaration | declaration_list, declaration ;
+
+primary_expression = identifier | constant | string_literal | "(", expression, ")" ;
+postfix_expression = primary_expression
+                   | postfix_expression, "[", expression, "]"
+                   | postfix_expression, "(", [argument_expression_list], ")"
+                   | postfix_expression, ".", identifier
+                   | postfix_expression, "->", identifier
+                   | postfix_expression, "++"
+                   | postfix_expression, "--"
+                   | "(", type_name, ")", "{", initializer_list, "}"
+                   | "(", type_name, ")", "{", initializer_list, ",", "}" ;
+argument_expression_list = assignment_expression | argument_expression_list, ",", assignment_expression ;
+unary_expression = postfix_expression
+                 | "++", unary_expression
+                 | "--", unary_expression
+                 | unary_operator, cast_expression
+                 | "sizeof", unary_expression
+                 | "sizeof", "(", type_name, ")" ;
+unary_operator = "&" | "*" | "+" | "-" | "~" | "!" ;
+cast_expression = unary_expression | "(", type_name, ")", cast_expression ;
+multiplicative_expression = cast_expression
+                          | multiplicative_expression, "*", cast_expression
+                          | multiplicative_expression, "/", cast_expression
+                          | multiplicative_expression, "%", cast_expression ;
+additive_expression = multiplicative_expression
+                    | additive_expression, "+", multiplicative_expression
+                    | additive_expression, "-", multiplicative_expression ;
+shift_expression = additive_expression
+                 | shift_expression, "<<", additive_expression
+                 | shift_expression, ">>", additive_expression ;
+relational_expression = shift_expression
+                      | relational_expression, "<", shift_expression
+                      | relational_expression, ">", shift_expression
+                      | relational_expression, "<=", shift_expression
+                      | relational_expression, ">=", shift_expression ;
+equality_expression = relational_expression
+                    | equality_expression, "==", relational_expression
+                    | equality_expression, "!=", relational_expression ;
+and_expression = equality_expression | and_expression, "&", equality_expression ;
+exclusive_or_expression = and_expression | exclusive_or_expression, "^", and_expression ;
+inclusive_or_expression = exclusive_or_expression | inclusive_or_expression, "|", exclusive_or_expression ;
+logical_and_expression = inclusive_or_expression | logical_and_expression, "&&", inclusive_or_expression ;
+logical_or_expression = logical_and_expression | logical_or_expression, "||", logical_and_expression ;
+conditional_expression = logical_or_expression | logical_or_expression, "?", expression, ":", conditional_expression ;
+assignment_expression = conditional_expression | unary_expression, assignment_operator, assignment_expression ;
+assignment_operator = "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|=" ;
+expression = assignment_expression | expression, ",", assignment_expression ;
+constant_expression = conditional_expression ;
+
+declaration = declaration_specifiers, [init_declarator_list], ";" ;
+declaration_specifiers = storage_class_specifier, [declaration_specifiers]
+                       | type_specifier, [declaration_specifiers]
+                       | type_qualifier, [declaration_specifiers]
+                       | function_specifier, [declaration_specifiers] ;
+init_declarator_list = init_declarator | init_declarator_list, ",", init_declarator ;
+init_declarator = declarator | declarator, "=", initializer ;
+storage_class_specifier = "typedef" | "extern" | "static" | "auto" | "register" ;
+type_specifier = "void" | "char" | "short" | "int" | "long" | "float" | "double"
+               | "signed" | "unsigned" | "_Bool" | "_Complex" | "_Imaginary"
+               | struct_or_union_specifier | enum_specifier | typedef_name ;
+struct_or_union_specifier = struct_or_union, [identifier], "{", struct_declaration_list, "}"
+                          | struct_or_union, identifier ;
+struct_or_union = "struct" | "union" ;
+struct_declaration_list = struct_declaration | struct_declaration_list, struct_declaration ;
+struct_declaration = specifier_qualifier_list, struct_declarator_list, ";" ;
+specifier_qualifier_list = type_specifier, [specifier_qualifier_list]
+                         | type_qualifier, [specifier_qualifier_list] ;
+struct_declarator_list = struct_declarator | struct_declarator_list, ",", struct_declarator ;
+struct_declarator = declarator | [declarator], ":", constant_expression ;
+enum_specifier = "enum", [identifier], "{", enumerator_list, "}"
+               | "enum", [identifier], "{", enumerator_list, ",", "}"
+               | "enum", identifier ;
+enumerator_list = enumerator | enumerator_list, ",", enumerator ;
+enumerator = enumeration_constant | enumeration_constant, "=", constant_expression ;
+type_qualifier = "const" | "restrict" | "volatile" ;
+function_specifier = "inline" ;
+declarator = [pointer], direct_declarator ;
+direct_declarator = identifier
+                  | "(", declarator, ")"
+                  | direct_declarator, "[", [type_qualifier_list], [assignment_expression], "]"
+                  | direct_declarator, "[", "static", [type_qualifier_list], assignment_expression, "]"
+                  | direct_declarator, "[", type_qualifier_list, "static", assignment_expression, "]"
+                  | direct_declarator, "[", [type_qualifier_list], "*", "]"
+                  | direct_declarator, "(", parameter_type_list, ")"
+                  | direct_declarator, "(", [identifier_list], ")" ;
+pointer = "*", [type_qualifier_list] | "*", [type_qualifier_list], pointer ;
+type_qualifier_list = type_qualifier | type_qualifier_list, type_qualifier ;
+parameter_type_list = parameter_list | parameter_list, ",", "..." ;
+parameter_list = parameter_declaration | parameter_list, ",", parameter_declaration ;
+parameter_declaration = declaration_specifiers, declarator | declaration_specifiers, [abstract_declarator] ;
+identifier_list = identifier | identifier_list, ",", identifier ;
+type_name = specifier_qualifier_list, [abstract_declarator] ;
+abstract_declarator = pointer | [pointer], direct_abstract_declarator ;
+direct_abstract_declarator = "(", abstract_declarator, ")"
+                           | [direct_abstract_declarator], "[", [type_qualifier_list], [assignment_expression], "]"
+                           | [direct_abstract_declarator], "[", "static", [type_qualifier_list], assignment_expression, "]"
+                           | [direct_abstract_declarator], "[", type_qualifier_list, "static", assignment_expression, "]"
+                           | [direct_abstract_declarator], "[", "*", "]"
+                           | [direct_abstract_declarator], "(", [parameter_type_list], ")" ;
+typedef_name = identifier ;
+initializer = assignment_expression
+            | "{", initializer_list, "}"
+            | "{", initializer_list, ",", "}" ;
+initializer_list = [designation], initializer | initializer_list, ",", [designation], initializer ;
+designation = designator_list, "=" ;
+designator_list = designator | designator_list, designator ;
+designator = "[", constant_expression, "]" | ".", identifier ;
+
+statement = matched_statement | unmatched_statement ;
+matched_statement = identifier, ":", matched_statement
+                  | "case", constant_expression, ":", matched_statement
+                  | "default", ":", matched_statement
+                  | compound_statement
+                  | expression_statement
+                  | "if", "(", expression, ")", matched_statement, "else", matched_statement
+                  | "switch", "(", expression, ")", matched_statement
+                  | "while", "(", expression, ")", matched_statement
+                  | "do", statement, "while", "(", expression, ")", ";"
+                  | for_head, matched_statement
+                  | jump_statement ;
+unmatched_statement = identifier, ":", unmatched_statement
+                    | "case", constant_expression, ":", unmatched_statement
+                    | "default", ":", unmatched_statement
+                    | "if", "(", expression, ")", statement
+                    | "if", "(", expression, ")", matched_statement, "else", unmatched_statement
+                    | "switch", "(", expression, ")", unmatched_statement
+                    | "while", "(", expression, ")", unmatched_statement
+                    | for_head, unmatched_statement ;
+for_head = "for", "(", [expression], ";", [expression], ";", [expression], ")"
+         | "for", "(", declaration, [expression], ";", [expression], ")" ;
+compound_statement = "{", [block_item_list], "}" ;
+block_item_list = block_item | block_item_list, block_item ;
+block_item = declaration | statement ;
+expression_statement = [expression], ";" ;
+jump_statement = "goto", identifier, ";"
+               | "continue", ";"
+               | "break", ";"
+               | "return", [expression], ";" ;
+
+token = keyword | identifier | constant | string_literal | punctuator ;
+preprocessing_token = header_name | identifier | pp_number | character_constant | string_literal | punctuator ;
+
+keyword = "auto" | "break" | "case" | "char" | "const" | "continue" | "default" | "do"
+        | "double" | "else" | "enum" | "extern" | "float" | "for" | "goto" | "if"
+        | "inline" | "int" | "long" | "register" | "restrict" | "return" | "short"
+        | "signed" | "sizeof" | "static" | "struct" | "switch" | "typedef" | "union"
+        | "unsigned" | "void" | "volatile" | "while" | "_Bool" | "_Complex" | "_Imaginary" ;
+
+identifier = identifier_nondigit | identifier, identifier_nondigit | identifier, digit ;
+identifier_nondigit = nondigit | universal_character_name ;
+nondigit = "_" | letter ;
+letter = uppercase_letter | lowercase_letter ;
+uppercase_letter = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
+                 | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
+lowercase_letter = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+                 | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+nonzero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+octal_digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" ;
+hexadecimal_digit = digit | "a" | "b" | "c" | "d" | "e" | "f" | "A" | "B" | "C" | "D" | "E" | "F" ;
+
+universal_character_name = '\', "u", hex_quad | '\', "U", hex_quad, hex_quad ;
+hex_quad = hexadecimal_digit, hexadecimal_digit, hexadecimal_digit, hexadecimal_digit ;
+
+constant = integer_constant | floating_constant | enumeration_constant | character_constant ;
+integer_constant = decimal_constant, [integer_suffix]
+                 | octal_constant, [integer_suffix]
+                 | hexadecimal_constant, [integer_suffix] ;
+decimal_constant = nonzero_digit | decimal_constant, digit ;
+octal_constant = "0" | octal_constant, octal_digit ;
+hexadecimal_constant = hexadecimal_prefix, hexadecimal_digit | hexadecimal_constant, hexadecimal_digit ;
+hexadecimal_prefix = "0x" | "0X" ;
+integer_suffix = unsigned_suffix, [long_suffix]
+               | unsigned_suffix, long_long_suffix
+               | long_suffix, [unsigned_suffix]
+               | long_long_suffix, [unsigned_suffix] ;
+unsigned_suffix = "u" | "U" ;
+long_suffix = "l" | "L" ;
+long_long_suffix = "ll" | "LL" ;
+floating_constant = decimal_floating_constant | hexadecimal_floating_constant ;
+decimal_floating_constant = fractional_constant, [exponent_part], [floating_suffix]
+                          | digit_sequence, exponent_part, [floating_suffix] ;
+hexadecimal_floating_constant = hexadecimal_prefix, hexadecimal_fractional_constant, binary_exponent_part, [floating_suffix]
+                              | hexadecimal_prefix, hexadecimal_digit_sequence, binary_exponent_part, [floating_suffix] ;
+fractional_constant = [digit_sequence], ".", digit_sequence | digit_sequence, "." ;
+exponent_part = ( "e" | "E" ), [sign], digit_sequence ;
+sign = "+" | "-" ;
+digit_sequence = digit | digit_sequence, digit ;
+hexadecimal_fractional_constant = [hexadecimal_digit_sequence], ".", hexadecimal_digit_sequence
+                                | hexadecimal_digit_sequence, "." ;
+binary_exponent_part = ( "p" | "P" ), [sign], digit_sequence ;
+hexadecimal_digit_sequence = hexadecimal_digit | hexadecimal_digit_sequence, hexadecimal_digit ;
+floating_suffix = "f" | "l" | "F" | "L" ;
+enumeration_constant = identifier ;
+character_constant = "'", c_char_sequence, "'" | "L'", c_char_sequence, "'" ;
+c_char_sequence = c_char | c_char_sequence, c_char ;
+c_char = base_char | "*" | "/" | ">" | '"' | escape_sequence ;
+escape_sequence = simple_escape_sequence | octal_escape_sequence | hexadecimal_escape_sequence | universal_character_name ;
+simple_escape_sequence = '\', ( "'" | '"' | "?" | '\' | "a" | "b" | "f" | "n" | "r" | "t" | "v" ) ;
+octal_escape_sequence = '\', octal_digit, [octal_digit, [octal_digit]] ;
+hexadecimal_escape_sequence = '\', "x", hexadecimal_digit | hexadecimal_escape_sequence, hexadecimal_digit ;
+
+string_literal = '"', [s_char_sequence], '"' | 'L"', [s_char_sequence], '"' ;
+s_char_sequence = s_char | s_char_sequence, s_char ;
+s_char = base_char | "*" | "/" | ">" | "'" | escape_sequence ;
+
+punctuator = "[" | "]" | "(" | ")" | "{" | "}" | "." | "->"
+           | "++" | "--" | "&" | "*" | "+" | "-" | "~" | "!"
+           | "/" | "%" | "<<" | ">>" | "<" | ">" | "<=" | ">=" | "==" | "!=" | "^" | "|" | "&&" | "||"
+           | "?" | ":" | ";" | "..."
+           | "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
+           | "," | "#" | "##"
+           | "<:" | ":>" | "<%" | "%>" | "%:" | "%:%:" ;
+
+header_name = "<", h_char_sequence, ">" | '"', q_char_sequence, '"' ;
+h_char_sequence = h_char | h_char_sequence, h_char ;
+h_char = base_char | "*" | "/" | '"' | "'" | '\' ;
+q_char_sequence = q_char | q_char_sequence, q_char ;
+q_char = base_char | "*" | "/" | ">" | "'" | '\' ;
+
+pp_number = digit
+          | ".", digit
+          | pp_number, digit
+          | pp_number, identifier_nondigit
+          | pp_number, "e", sign
+          | pp_number, "E", sign
+          | pp_number, "p", sign
+          | pp_number, "P", sign
+          | pp_number, "." ;
+
+base_char = letter | digit | "_" | punct_char | inline_space ;
+punct_char = "!" | "#" | "%" | "&" | "(" | ")" | "+" | "," | "-" | "." | ":" | ";"
+           | "<" | "=" | "?" | "[" | "]" | "^" | "{" | "|" | "}" | "~" ;
+inline_space = " " | "\t" | "\v" | "\f" ;
+new_line = "\n" ;
+
+white_space = inline_space | new_line | comment ;
+comment = block_comment | line_comment ;
+block_comment = "/*", { not_star | "*", { "*" }, not_star_or_slash }, "*", { "*" }, "/" ;
+line_comment = "//", { line_comment_char } ;
+line_comment_char = base_char | "*" | "/" | ">" | '"' | "'" | '\' ;
+not_star = base_char | "/" | ">" | '"' | "'" | '\' | new_line ;
+not_star_or_slash = base_char | ">" | '"' | "'" | '\' | new_line ;
+
+preprocessing_file = [group] ;
+group = group_part | group, group_part ;
+group_part = if_section | control_line | text_line | "#", non_directive ;
+if_section = if_group, [elif_groups], [else_group], endif_line ;
+if_group = "#", "if", constant_expression, new_line, [group]
+         | "#", "ifdef", identifier, new_line, [group]
+         | "#", "ifndef", identifier, new_line, [group] ;
+elif_groups = elif_group | elif_groups, elif_group ;
+elif_group = "#", "elif", constant_expression, new_line, [group] ;
+else_group = "#", "else", new_line, [group] ;
+endif_line = "#", "endif", new_line ;
+control_line = "#", "include", pp_tokens, new_line
+             | "#", "define", identifier, replacement_list, new_line
+             | "#", "define", identifier, lparen, [identifier_list], ")", replacement_list, new_line
+             | "#", "define", identifier, lparen, "...", ")", replacement_list, new_line
+             | "#", "define", identifier, lparen, identifier_list, ",", "...", ")", replacement_list, new_line
+             | "#", "undef", identifier, new_line
+             | "#", "line", pp_tokens, new_line
+             | "#", "error", [pp_tokens], new_line
+             | "#", "pragma", [pp_tokens], new_line
+             | "#", new_line ;
+text_line = [pp_tokens], new_line ;
+non_directive = pp_tokens, new_line ;
+lparen = "(" ;
+replacement_list = [pp_tokens] ;
+pp_tokens = preprocessing_token | pp_tokens, preprocessing_token ;

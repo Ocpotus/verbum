@@ -8,6 +8,10 @@ void *memory_new(size_t size) {
 	return malloc(size);
 }
 
+void *memory_initialize(size_t size, uint8_t value) {
+	return calloc(size, value);
+}
+
 void memory_delete(void *ptr) {
 	if(ptr != NULL) {
 		free(ptr);

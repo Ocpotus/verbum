@@ -10,6 +10,16 @@
 
 #include "symbol.h"
 
+/* SymbolSetEntry
+ *
+ * MEMBERS:
+ * 	symbol: actual symbol
+ * 	index: index of the symbol (insertion order)
+ */
+typedef struct SymbolSetEntry {
+	Symbol symbol;
+	size_t index;
+} SymbolSetEntry;
 
 static uint64_t symbol_set_hash(const void *item, uint64_t seed0, uint64_t seed1);
 static int symbol_set_compare(const void *a, const void *b, void *udata);
@@ -45,7 +55,7 @@ bool symbol_equals(Symbol a, Symbol b) {
 
 SymbolSet symbol_set_new() {
 	return hashmap_new_with_allocator(memory_new, memory_resize, memory_delete,
-					    sizeof(Symbol), 0, 0, 0,
+					    sizeof(SymbolSetEntry), 0, 0, 0,
 					    symbol_set_hash, symbol_set_compare, NULL, NULL);
 }
 
@@ -54,11 +64,11 @@ void symbol_set_delete(SymbolSet set) {
 }
 
 bool symbol_set_contains(SymbolSet set, Symbol t) {
-	return hashmap_get(set, &t) != NULL;
+	return hashmap_get(set, &(SymbolSetEntry) { .symbol = t, .index = 0 }) != NULL;
 }
 
 bool symbol_set_insert(SymbolSet *set, Symbol t) {
-	return hashmap_set(*set, &t) != NULL;
+	return hashmap_set(*set, &(SymbolSetEntry) { .symbol = t, .index = symbol_set_size(*set) + 1 }) != NULL;
 }
 
 size_t symbol_set_size(SymbolSet set) {
@@ -66,20 +76,17 @@ size_t symbol_set_size(SymbolSet set) {
 }
 
 size_t symbol_set_index(SymbolSet set, Symbol symbol, bool *found) {
-	size_t result = 0;
+	const SymbolSetEntry *entry = hashmap_get(set, &(SymbolSetEntry) { .symbol = symbol, .index = 0 });
 
-	symbol_set_iterate(set, it1, {
-		if(symbol_equals(*it1, symbol)) {
-			*found = true;
-			return result;
-		}
+	if(entry == NULL) {
+		*found = false;
 
-		result += 1;
-	});
+		return 0;
+	}
 
-	*found = false;
+	*found = true;
 
-	return result;
+	return entry->index;
 }
 
 static uint64_t symbol_set_hash(const void *item, uint64_t seed0, uint64_t seed1) {

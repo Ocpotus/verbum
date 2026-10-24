@@ -2,6 +2,7 @@
 #define VERBUM_MEMORY_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 
 /* Memory allocator
@@ -13,6 +14,9 @@
  * 	A pointer if successful or NULL on failure
  */
 void *memory_new(size_t size);
+
+
+void *memory_initialize(size_t size, uint8_t value);
 
 /* Memory deleter 
  *

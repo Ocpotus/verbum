@@ -18,7 +18,7 @@ $ forge build
 To generate code Verbum needs to follow a strict EBNF grammar. Verbum accepts the following syntax as EBNF:
 - `()`: grouping
 - `[]`: optional
-- `{}`: repeition
+- `{}`: repetition
 - `''`, `""`: literals
 - `,`: concatenation
 - `|`: alternation

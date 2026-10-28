@@ -16,6 +16,7 @@
 #include "verbum/raw_rule/raw_rule.h"
 #include "verbum/bnf/bnf.h"
 #include "verbum/table/table.h"
+#include "verbum/generate/generate.h"
 
 
 /* table_column_name
@@ -272,6 +273,9 @@ int main(int argc, char **argv) {
 
 	printf("%u * %u * %zu = %zu bytes", table.num_nonterminals + table.num_states, table.num_states, sizeof(*table.action_table),
 			((size_t) (table.num_nonterminals + table.num_states)) * ((size_t) table.num_states) * ((size_t) sizeof(*table.action_table)));
+
+	verbum_generate(grammar, table);
+
 	cvector_free(nonterminals);
 	parse_table_delete(&table);
 	cvector_free(conflicts);

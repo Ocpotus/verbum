@@ -24,8 +24,14 @@ LR1Automaton lr1_new(Grammar g, LR0Automaton lr0) {
 		.word_count = 0,
 	};
 
+	// Ordered by symbol_set_index so lookahead indices match the grammar's terminal indices
+	cvector_resize(result.terminals, symbol_set_size(g.terminals), ((Symbol) { 0 }));
+
 	symbol_set_iterate(g.terminals, it1, {
-		cvector_push_back(result.terminals, *it1);
+		bool found = true;
+		size_t index = symbol_set_index(g.terminals, *it1, &found);
+
+		result.terminals[index] = *it1;
 	});
 
 	// One extra bit for the end of input
@@ -92,13 +98,13 @@ void lr1_item_delete(LR1Item *item) {
 	lr1_lookahead_delete(&item->lookahead);
 }
 
-bool lr1_item_core_equals(LR0Item a, LR0Item b) {
+bool lr1_item_kernel_equals(LR0Item a, LR0Item b) {
 	// Rules are unique per identifier so their definitions identify them
 	return a.rule.definitions == b.rule.definitions && a.rule_index == b.rule_index && a.dot_pos == b.dot_pos;
 }
 
 bool lr1_item_equals(LR1Automaton *a, LR1Item x, LR1Item y) {
-	return lr1_item_core_equals(x.lr0, y.lr0) && lr1_lookahead_equals(a, x.lookahead, y.lookahead);
+	return lr1_item_kernel_equals(x.lr0, y.lr0) && lr1_lookahead_equals(a, x.lookahead, y.lookahead);
 }
 
 // State
@@ -127,9 +133,9 @@ void lr1_state_delete(LR1State *state) {
 	state->items = NULL;
 }
 
-size_t lr1_state_find(LR1State state, LR0Item core) {
+size_t lr1_state_find(LR1State state, LR0Item kernel) {
 	for(size_t i = 0; i < cvector_size(state.items); i += 1) {
-		if(lr1_item_core_equals(state.items[i].lr0, core)) {
+		if(lr1_item_kernel_equals(state.items[i].lr0, kernel)) {
 			return i;
 		}
 	}
@@ -142,7 +148,7 @@ bool lr1_state_equals(LR1Automaton *a, LR1State x, LR1State y) {
 		return false;
 	}
 
-	// Cores are unique within a state so matching by core is enough
+	// kernels are unique within a state so matching by kernel is enough
 	for(LR1Item *it1 = cvector_begin(x.items); it1 != cvector_end(x.items); it1 += 1) {
 		size_t i = lr1_state_find(y, it1->lr0);
 

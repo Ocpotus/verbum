@@ -50,7 +50,7 @@ typedef struct LR1Transition {
  * MEMBERS:
  * 	states: LR(1) states, state 0 is the start state
  * 	transitions: edges between states
- * 	terminals: maps a lookahead index to its terminal, one past the end is the end of input
+ * 	terminals: maps a lookahead index to its terminal, ordered by symbol_set_index, one past the end is the end of input
  * 	word_count: number of words backing a LookaheadSet
  */
 typedef struct LR1Automaton {
@@ -99,7 +99,7 @@ size_t lr1_terminal_index(LR1Automaton *a, Symbol s);
 /* lr1_item_new
  *
  * PARAMETERS:
- * 	lr0: core of the item
+ * 	lr0: kernel of the item
  * 	lookahead: set to take ownership of, NULL for the wildcard
  */
 LR1Item lr1_item_new(LR0Item lr0, LookaheadSet lookahead);
@@ -108,12 +108,12 @@ LR1Item lr1_item_copy(LR1Automaton *a, LR1Item item);
 
 void lr1_item_delete(LR1Item *item);
 
-/* lr1_item_core_equals
+/* lr1_item_kernel_equals
  *
  * RETURNS:
- * 	true if both items have the same LR(0) core, lookaheads are ignored
+ * 	true if both items have the same LR(0) kernel, lookaheads are ignored
  */
-bool lr1_item_core_equals(LR0Item a, LR0Item b);
+bool lr1_item_kernel_equals(LR0Item a, LR0Item b);
 
 bool lr1_item_equals(LR1Automaton *a, LR1Item x, LR1Item y);
 
@@ -131,12 +131,12 @@ void lr1_state_delete(LR1State *state);
  *
  * PARAMETERS:
  * 	state: state to search
- * 	core: LR(0) item to look for
+ * 	kernel: LR(0) item to look for
  *
  * RETURNS:
- * 	index of the item with the given core, SIZE_MAX if not found
+ * 	index of the item with the given kernel, SIZE_MAX if not found
  */
-size_t lr1_state_find(LR1State state, LR0Item core);
+size_t lr1_state_find(LR1State state, LR0Item kernel);
 
 bool lr1_state_equals(LR1Automaton *a, LR1State x, LR1State y);
 

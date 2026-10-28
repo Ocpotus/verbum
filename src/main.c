@@ -15,7 +15,30 @@
 #include "verbum/definition/definition.h"
 #include "verbum/raw_rule/raw_rule.h"
 #include "verbum/bnf/bnf.h"
+#include "verbum/table/table.h"
 
+
+/* table_column_name
+ *
+ * Formats a symbol as a table header, sub expressions share a lexeme (r, o, g) so their Nth index is appended
+ *
+ * RETURNS:
+ * 	the display width of the name, UTF-8 continuation bytes take no space
+ */
+static int table_column_name(Symbol s, char *out, size_t size) {
+	int length = snprintf(out, size, "%.*s", (int) s.lexeme.length, s.lexeme.data);
+	int width = 0;
+
+	if(s.mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+		snprintf(out + length, size - length, "%u", (unsigned) (s.mask >> 4));
+	}
+
+	for(char *c = out; *c != '\0'; c += 1) {
+		width += ((unsigned char) *c & 0xC0) != 0x80;
+	}
+
+	return width;
+}
 
 int main(int argc, char **argv) {
 #ifdef FORGE_RELEASE
@@ -63,9 +86,7 @@ int main(int argc, char **argv) {
 	cvector(size_t) conflicts = NULL;
 	LR1Automaton lane_table = lane_table_new(grammar, lr0, &conflicts);
 
-	printf("@start: %.*s\n", (int) grammar.start->identifier.lexeme.length, grammar.start->identifier.lexeme.data);
-
-	for(LR1State *it1 = cvector_begin(lane_table.states); it1 != cvector_end(lane_table.states); it1 += 1) {
+	/* for(LR1State *it1 = cvector_begin(lane_table.states); it1 != cvector_end(lane_table.states); it1 += 1) {
 		printf("s%zu:\n", it1 - cvector_begin(lane_table.states));
 
 		for(LR1Item *lane_item = cvector_begin(it1->items); lane_item != cvector_end(it1->items); lane_item += 1) {
@@ -143,8 +164,116 @@ int main(int argc, char **argv) {
 
 	for(size_t *it1 = cvector_begin(conflicts); it1 != cvector_end(conflicts); it1 += 1) {
 		printf("conflict: s%zu\n", *it1);
+
+		for(LR1Transition *it2 = cvector_begin(lane_table.transitions); it2 != cvector_end(lane_table.transitions); it2 += 1) {
+			if(it2->source == *it1) {
+				printf("s%zu--", it2->source);
+				printf("%.*s", (int) it2->symbol.lexeme.length, it2->symbol.lexeme.data);
+
+				if(it2->symbol.mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+					printf("%d", it2->symbol.mask >> 4);
+				}
+
+				printf("-->s%zu\n", it2->destination);
+			}
+		}
+	} */
+
+	ParseTable table = parse_table_new(grammar, lane_table);
+
+	// Columns are symbol_set_index ordered, the set iterates in hash order
+	cvector(Symbol) nonterminals = NULL;
+
+	cvector_resize(nonterminals, symbol_set_size(grammar.nonterminals), ((Symbol) { 0 }));
+
+	symbol_set_iterate(grammar.nonterminals, it1, {
+		bool found = true;
+		size_t index = symbol_set_index(grammar.nonterminals, *it1, &found);
+
+		nonterminals[index] = *it1;
+	});
+
+	// Every column is as wide as the longest name so long identifiers don't push the rest out of line
+	int width = 10;
+	char name[64];
+
+	for(size_t terminal_index = 0; terminal_index < table.num_terminals; terminal_index += 1) {
+		int name_width = table_column_name(lane_table.terminals[terminal_index], name, sizeof(name));
+
+		width = (name_width > width) ? name_width : width;
 	}
 
+	for(size_t nonterminal_index = 0; nonterminal_index < table.num_nonterminals; nonterminal_index += 1) {
+		int name_width = table_column_name(nonterminals[nonterminal_index], name, sizeof(name));
+
+		width = (name_width > width) ? name_width : width;
+	}
+
+	printf("%*s", width, "");
+
+	for(size_t terminal_index = 0; terminal_index < table.num_terminals; terminal_index += 1) {
+		int name_width = table_column_name(lane_table.terminals[terminal_index], name, sizeof(name));
+
+		// printf pads by bytes, pad by display width so multibyte names (π) line up
+		printf("|%*s%s", width - name_width, "", name);
+	}
+
+	printf("|%*s", width, "$");
+
+	for(size_t nonterminal_index = 0; nonterminal_index < table.num_nonterminals; nonterminal_index += 1) {
+		int name_width = table_column_name(nonterminals[nonterminal_index], name, sizeof(name));
+
+		printf("|%*s%s", width - name_width, "", name);
+	}
+
+	printf("|\n");
+
+	for(size_t state_index = 0; state_index < table.num_states; state_index += 1) {
+		printf("s%-*zu", width - 1, state_index);
+
+		// One past the last terminal is the end of input
+		for(size_t terminal_index = 0; terminal_index <= table.num_terminals; terminal_index += 1) {
+			ParseTableAction action = parse_table_action_at(&table, state_index, terminal_index);
+			char cell[16];
+
+			switch(parse_table_action_type(action)) {
+				case ParseTableActionType_Accept:
+					snprintf(cell, sizeof(cell), "accept");
+					break;
+				case ParseTableActionType_Shift:
+					snprintf(cell, sizeof(cell), "s%u", parse_table_action_value(action));
+					break;
+				case ParseTableActionType_Reduce:
+					snprintf(cell, sizeof(cell), "r%u", parse_table_action_value(action));
+					break;
+				default:
+					snprintf(cell, sizeof(cell), "error");
+					break;
+			}
+
+			printf("|%*s", width, cell);
+		}
+
+		for(size_t nonterminal_index = 0; nonterminal_index < table.num_nonterminals; nonterminal_index += 1) {
+			ParseTableGoto g0t0 = parse_table_goto_at(&table, state_index, nonterminal_index);
+			char cell[16];
+
+			if(g0t0 == ParseTableGotoError) {
+				snprintf(cell, sizeof(cell), "error");
+			} else {
+				snprintf(cell, sizeof(cell), "s%u", g0t0);
+			}
+
+			printf("|%*s", width, cell);
+		}
+
+		printf("|\n");
+	}
+
+	printf("%u * %u * %zu = %zu bytes", table.num_nonterminals + table.num_states, table.num_states, sizeof(*table.action_table),
+			((size_t) (table.num_nonterminals + table.num_states)) * ((size_t) table.num_states) * ((size_t) sizeof(*table.action_table)));
+	cvector_free(nonterminals);
+	parse_table_delete(&table);
 	cvector_free(conflicts);
 	lr1_delete(lane_table);
 	lr0_delete(lr0);

@@ -68,7 +68,12 @@ bool symbol_set_contains(SymbolSet set, Symbol t) {
 }
 
 bool symbol_set_insert(SymbolSet *set, Symbol t) {
-	return hashmap_set(*set, &(SymbolSetEntry) { .symbol = t, .index = symbol_set_size(*set) + 1 }) != NULL;
+	// Reinserting would reassign the index, keep the first one so indices stay dense and stable
+	if(symbol_set_contains(*set, t)) {
+		return false;
+	}
+
+	return hashmap_set(*set, &(SymbolSetEntry) { .symbol = t, .index = symbol_set_size(*set) }) == NULL && !hashmap_oom(*set);
 }
 
 size_t symbol_set_size(SymbolSet set) {

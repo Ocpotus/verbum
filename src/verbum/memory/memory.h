@@ -15,7 +15,15 @@
  */
 void *memory_new(size_t size);
 
-
+/* Memory allocator that fills every byte
+ *
+ * PARAMETERS:
+ * 	size: nbytes to allocate
+ * 	value: byte to fill the memory with
+ *
+ * RETURNS:
+ * 	A pointer if successful or NULL on failure
+ */
 void *memory_initialize(size_t size, uint8_t value);
 
 /* Memory deleter 

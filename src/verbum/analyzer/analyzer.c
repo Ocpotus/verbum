@@ -18,6 +18,15 @@
 
 static const char * const sub_expression_prefixes = "org";
 
+/* augmented_start
+ *
+ * Identifier of the augmented rule @start -> start, '@' cannot appear in a user identifier so it never collides
+ */
+static const Symbol augmented_start = {
+	.lexeme = { .data = "π", .length = 2 },
+	.mask = SymbolMask_None,
+};
+
 typedef struct Context {
 	uint32_t num_repetition;
 	uint32_t num_optional;
@@ -58,6 +67,16 @@ Grammar analyzer_analyze(cvector(RawRule) raw_rules) {
 			break;
 		}
 	});
+
+	if(result.start != NULL) {
+		// Copy before inserting, the insert can move the start rule
+		Symbol start = result.start->identifier;
+		Definition definition = definition_new();
+
+		definition_push_back(&definition, start);
+		result.start = rule_set_insert(&result.rules, augmented_start, definition);
+		symbol_set_insert(&result.nonterminals, augmented_start);
+	}
 
 	return result;
 }

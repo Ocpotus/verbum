@@ -4,6 +4,7 @@
 #include "lib/log.c/log.h"
 #include "lib/c-vector/cvector.h"
 
+#include "verbum/ast/ast.h"
 #include "verbum/lexer/lexer.h"
 #include "verbum/symbol/symbol.h"
 #include "verbum/analyzer/analyzer.h"
@@ -274,7 +275,7 @@ int main(int argc, char **argv) {
 	printf("%u * %u * %zu = %zu bytes", table.num_nonterminals + table.num_states, table.num_states, sizeof(*table.action_table),
 			((size_t) (table.num_nonterminals + table.num_states)) * ((size_t) table.num_states) * ((size_t) sizeof(*table.action_table)));
 
-	verbum_generate(grammar, table);
+	verbum_generate(rules, grammar, table);
 
 	cvector_free(nonterminals);
 	parse_table_delete(&table);
@@ -284,9 +285,19 @@ int main(int argc, char **argv) {
 	grammar_delete(&grammar);
 
 
-	for(RawRule *it1 = cvector_begin(rules); it1 != cvector_end(rules); it1 += 1) {
+	AST *ast = ast_new_from_raw_rules(rules);
+
+	ast_print(ast);
+
+	/* for(RawRule *it1 = cvector_begin(rules); it1 != cvector_end(rules); it1 += 1) {
+		printf("%.*s = ", (int) it1->identifier.lexeme.length, it1->identifier.lexeme.data);
+		for(Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
+			printf("%.*s, ", (int) it2->lexeme.length, it2->lexeme.data);
+		}
+		printf(";\n");
+
 		raw_rule_delete(it1);
-	}
+	} */
 
 	cvector_free(rules);
 	lexer_delete(lexer);

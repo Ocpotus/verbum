@@ -304,9 +304,6 @@ static Token lexer_lex_operator(Lexer *l) {
 	case ';':
 		result.tag = TokenType_Semicolon;
 		break;
-	case '-':
-		result.tag = TokenType_Hyphen;
-		break;
 	default:
 		result.tag = TokenType_Invalid;
 		break;

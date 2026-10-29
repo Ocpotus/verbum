@@ -9,9 +9,9 @@
 
 
 /* Operator charset */
-#define OPERATOR_CHARS "=|[]{}(),;-"
+#define OPERATOR_CHARS "=|[]{}(),;"
 /* Invalid charset */
-#define INVALID_CHARS "?&^!+/%~.<>"
+#define INVALID_CHARS "?&^!+/%~.<>-"
 /* Whitespace charset */
 #define WHITE_SPACE " \t\n\v\f\r"
 /* Invalid charset for an identifier or keyword */
@@ -38,7 +38,6 @@ typedef enum TokenType {
 	TokenType_Operator,
 	TokenType_Equal, // =
         TokenType_Pipe, // |
-	TokenType_Hyphen, // -
 	TokenType_Comma, // ,
 	TokenType_LeftBracket, // [
 	TokenType_RightBracket, // ]

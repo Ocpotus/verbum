@@ -12,24 +12,6 @@
 #include "lexer.h"
 
 
-/* Lexer struct
- *
- * MEMBERS:
- * 	f: a pointer to a UTF8File to read from
- * 	pos:
- * 		row: current row in the file
- * 		column: current column in the file
- * 	cc: current character
- */
-typedef struct Lexer {
-	UTF8File *f;
-	struct {
-		uint32_t row;
-		uint32_t col;
-	} pos;
-	utf8_int32_t cc;
-} Lexer;
-
 /* Advances a Lexer's position
  *
  * PARAMETERS:
@@ -95,17 +77,17 @@ void lexer_report_error(Lexer *l, utf8_int32_t c);
  */
 Token lexer_lex(Lexer *l);
 
-Lexer *lexer_new(const char *path) {
-	Lexer *result = memory_new(1 * sizeof(*result));
+Lexer lexer_new(const char *path) {
+	Lexer result = (Lexer) {
+		.f = utf8file_open(path),
+		.pos = {
+			.row = 1,
+			.col = 1,
+		},
+	};
 
-	if(result != NULL) {
-		result->f = utf8file_open(path);
-		result->pos.row = 1;
-		result->pos.col = 1;
-
-		if(result->f == NULL) {
-			memory_delete(result);
-		}
+	if(result.f == NULL) {
+		result = (Lexer) { 0 };
 	}
 
 	return result;
@@ -113,7 +95,7 @@ Lexer *lexer_new(const char *path) {
 
 void lexer_delete(Lexer *l) {
 	utf8file_close(l->f);
-	memory_delete(l);
+	*l = (Lexer) { 0 };
 }
 
 Token lexer_get_token(Lexer *l) {

@@ -1,11 +1,31 @@
 #ifndef VERBUM_LEXER_H
 #define VERBUM_LEXER_H
 
+#include <stddef.h>
+
+#include "../../lib/utf8file/utf8file.h"
+#include "../../lib/utf8.h/utf8.h"
+
 #include "../token/token.h"
 
 
-/* Opaque declaration */
-typedef struct Lexer Lexer;
+/* Lexer struct
+ *
+ * MEMBERS:
+ * 	f: a pointer to a UTF8File to read from
+ * 	pos:
+ * 		row: current row in the file
+ * 		column: current column in the file
+ * 	cc: current character
+ */
+typedef struct Lexer {
+	UTF8File *f;
+	struct {
+		uint32_t row;
+		uint32_t col;
+	} pos;
+	utf8_int32_t cc;
+} Lexer;
 
 /* Constructs a new Lexer
  *
@@ -15,7 +35,7 @@ typedef struct Lexer Lexer;
  * RETURNS:
  * 	A pointer to a Lexer or NULL on failure
  */
-Lexer *lexer_new(const char *path);
+Lexer lexer_new(const char *path);
 
 /* Deletes a Lexer
  *

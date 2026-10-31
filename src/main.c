@@ -76,8 +76,8 @@ void verbum(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	Lexer *lexer = lexer_new(argv[1]);
-	cvector(RawRule) rules = verbum_parse(lexer);
+	Lexer lexer = lexer_new(argv[1]);
+	cvector(RawRule) rules = verbum_parse(&lexer);
 	Grammar grammar = analyzer_analyze(rules);
 	LR0Automaton lr0 = lr0_new(grammar);
 	cvector(size_t) conflicts = NULL;
@@ -101,5 +101,5 @@ void verbum(int argc, char **argv) {
 	lr0_delete(lr0);
 	grammar_delete(&grammar);
 	cvector_free(rules);
-	lexer_delete(lexer);
+	lexer_delete(&lexer);
 }

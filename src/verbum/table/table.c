@@ -128,6 +128,11 @@ static bool parse_table_productions(ParseTable *t, Grammar *g, size_t *base) {
 		bool found = true;
 		size_t lhs = symbol_set_index(g->nonterminals, rule->identifier, &found);
 
+		// Lexical rules build the lexer, they are not productions
+		if(rule->mask & RuleMask_Lexical) {
+			continue;
+		}
+
 		if(!found) {
 			log_error("rule %.*s is not a nonterminal", (int) rule->identifier.lexeme.length, rule->identifier.lexeme.data);
 			result = false;
@@ -158,7 +163,7 @@ static bool parse_table_productions(ParseTable *t, Grammar *g, size_t *base) {
 		bool found = true;
 		size_t lhs = symbol_set_index(g->nonterminals, rule->identifier, &found);
 
-		if(!found) {
+		if(!found || (rule->mask & RuleMask_Lexical)) {
 			continue;
 		}
 

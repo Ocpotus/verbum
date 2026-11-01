@@ -51,7 +51,29 @@ const Rule *rule_set_insert(RuleSet *set, Symbol identifier, Definition definiti
 Rule rule_set_get(RuleSet set, Symbol identifier);
 
 bool rule_set_remove(RuleSet *set, Symbol identifier);
-void rule_set_update(RuleSet *set, Symbol identifier, cvector(Definition) definitions);
+
+/* rule_set_update
+ *
+ * Replaces a stored rule in place, creating it if needed. The rule is looked up by its identifier.
+ * Updating an existing rule never resizes the set, so it is safe during rule_set_iterate.
+ *
+ * PARAMETERS:
+ * 	set: set to update
+ * 	rule: rule to store, ownership of its definitions moves to the set
+ */
+void rule_set_update(RuleSet *set, Rule rule);
+
+/* rule_set_mark
+ *
+ * Adds properties to a stored rule in place. Does nothing if the rule is not stored.
+ * Never resizes the set, so it is safe during rule_set_iterate.
+ *
+ * PARAMETERS:
+ * 	set: set holding the rule
+ * 	identifier: rule to mark
+ * 	mask: RuleMask bits to add
+ */
+void rule_set_mark(RuleSet *set, Symbol identifier, uint32_t mask);
 
 
 /* rule_set_iterate

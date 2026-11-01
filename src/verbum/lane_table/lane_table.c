@@ -222,7 +222,8 @@ static void compute_first(Builder *b) {
 			bool found = false;
 			size_t n = symbol_set_index(b->g.nonterminals, rule->identifier, &found);
 
-			if(!found) {
+			// Lexical rules build the lexer, they never appear in the automaton
+			if(!found || (rule->mask & RuleMask_Lexical)) {
 				continue;
 			}
 

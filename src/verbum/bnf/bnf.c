@@ -17,7 +17,7 @@ void bnf_print(Grammar g) {
 			printf("<%.*s", (int) rule->identifier.lexeme.length, rule->identifier.lexeme.data);
 
 			if(rule->identifier.mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
-				printf("%d", rule->identifier.mask >> 4);
+				printf("%d", rule->identifier.mask >> SYMBOL_MASK_INDEX_OFFSET);
 			}
 
 			printf("> ::=");
@@ -53,7 +53,7 @@ void bnf_print(Grammar g) {
 				printf("%.*s", (int) it2->lexeme.length, it2->lexeme.data);
 
 				if(it2->mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
-					printf("%d", it2->mask >> 4);
+					printf("%d", it2->mask >> SYMBOL_MASK_INDEX_OFFSET);
 				}
 
 				if(!terminal) {

@@ -1,7 +1,7 @@
 #ifndef SRC_LEXEME_H
 #define SRC_LEXEME_H
 
-#include <stdlib.h>
+#include <stddef.h>
 
 
 typedef struct Lexeme {

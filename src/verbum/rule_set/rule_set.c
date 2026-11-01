@@ -89,8 +89,25 @@ bool rule_set_remove(RuleSet *set, Symbol identifier) {
 	return true;
 }
 
-void rule_set_update(RuleSet *set, Symbol identifier, cvector(Definition) definitions) {
-	hashmap_set(*set, &(Rule) { .identifier = identifier, .definitions = definitions });
+void rule_set_update(RuleSet *set, Rule rule) {
+	Rule *r = (Rule *)hashmap_get(*set, &rule);
+
+	if(r == NULL) {
+		hashmap_set(*set, &rule);
+
+		return;
+	}
+
+	// Update in place, no insert means no resize so iterators and Rule pointers stay valid
+	*r = rule;
+}
+
+void rule_set_mark(RuleSet *set, Symbol identifier, uint32_t mask) {
+	Rule *r = (Rule *)hashmap_get(*set, &(Rule) { .identifier = identifier });
+
+	if(r != NULL) {
+		r->mask |= mask;
+	}
 }
 
 static uint64_t rule_set_hash(const void *item, uint64_t seed0, uint64_t seed1) {

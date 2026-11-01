@@ -21,11 +21,15 @@ cvector(RawRule) verbum_parse(Lexer *l) {
 			RawRule rule = {
 				.identifier = current,
 				.definition = NULL,
+				.lexical = false,
 			};
+			Token define_operator = lexer_get_token(l);
 
-			if(lexer_get_token(l).tag != TokenType_Equal) {
+			if(define_operator.tag != TokenType_Equal && define_operator.tag != TokenType_ColonEqual) {
 				// Error
 			}
+
+			rule.lexical = define_operator.tag == TokenType_ColonEqual;
 
 			do {
 				current = lexer_get_token(l);

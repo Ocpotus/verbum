@@ -23,7 +23,8 @@ To generate code Verbum needs to follow a strict EBNF grammar. Verbum accepts th
 - `,`: concatenation
 - `|`: alternation
 - `a-zA-Z_` + `a-zA-Z0-9_`: identifier
-- `=`: assignment
+- `=`: assignment, a syntax rule
+- `:=`: assignment, a lexical rule
 - `;`: end of rule
 
 Verbum expects a valid LR(1) grammar or at least a grammar with very little ambiguities. If the grammar is very ambiguous then Verbum will take _forever_ to run, so a valid or close to valid grammar should only take a few seconds to run. If you find yourself waiting a few minutes, then it is safe to assume the grammar will not pass.
@@ -35,7 +36,6 @@ Verbum expects a valid LR(1) grammar or at least a grammar with very little ambi
 
 ## Roadmap
 - Early conflict checking to prevent long processing times. Essentially abort at _first_ conflict.
-- Parse table construction.
 - Matrix compression.
 - Code generation.
 - Testing suite.

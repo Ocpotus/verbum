@@ -17,12 +17,14 @@
  * The whole mask takes part in equality, sub expressions share a lexeme (e.g. "(") and are only
  * told apart by their flag and Nth index
  *
- * Diagram:
- * 	Group #33: 0 0 0 1 | 1 0 0 0 0 1 ...
- * 		   	 | \_______________/
- *	                 |  \Nth group processed
- * 	    Group bit set/
+ * Diagram (least significant bit first):
+ * 	Group #33: 0 0 1 0 | 1 0 0 0 0 1 ...
+ * 		       |   | \_______________/
+ *	               |   |  \Nth group processed
+ * 	  Group bit set/   \SYMBOL_MASK_INDEX_OFFSET
  */
+#define SYMBOL_MASK_INDEX_OFFSET 4
+
 typedef enum SymbolMask {
 	SymbolMask_None = 0x0 << 0,
 	SymbolMask_Repetition = 0x1 << 0,

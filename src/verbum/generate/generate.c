@@ -5,15 +5,20 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "../../lib/c-vector/cvector.h"
+
 #include "../table/table.h"
 #include "../grammar/grammar.h"
-#include "../ast/ast.h"
+//#include "../ast/ast.h"
+#include "../rule_set/rule_set.h"
+#include "../rule/rule.h"
+#include "../symbol/symbol.h"
 
 #include "generate.h"
 
 
-static void generate_table(FILE *fp, ParseTable table);
-//static void generate_ast(FILE *fp, cvector(RawRule) raw_rules, const char *source_path);
+static void generate_table(FILE *fp, Grammar grammar, ParseTable table);
+static void generate_ast(FILE *fp, Grammar grammar);
 
 
 void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable table) {
@@ -23,6 +28,7 @@ void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable tab
 	(void) raw_rules;
 
 	fprintf(fp, "#include <stdint.h>\n");
+	fprintf(fp, "#include <stddef.h>\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "/*\n");
 	fprintf(fp, " * C99 standard guarantees sizeof enum is >= sizeof int\n");
@@ -55,12 +61,16 @@ void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable tab
 	fprintf(fp, "static const uint32_t GotoError = UINT32_MAX;\n");
 	fprintf(fp, "typedef uint32_t ParseTableGoto;\n");
 
-	generate_table(fp, table);
+	generate_table(fp, grammar, table);
+	//generate_parser(fp, grammar, table);
+	generate_ast(fp, grammar);
 
 	fclose(fp);
 }
 
-static void generate_table(FILE *fp, ParseTable table) {
+static void generate_table(FILE *fp, Grammar grammar, ParseTable table) {
+	(void) grammar;
+
 	fprintf(fp, "static const ParseTableAction action_table[%zu][%zu] = {\n", (size_t )table.num_states, (size_t) table.num_terminals + 1);
 
 	for(size_t state_index = 0; state_index < table.num_states; state_index += 1) {
@@ -68,11 +78,7 @@ static void generate_table(FILE *fp, ParseTable table) {
 		for(size_t terminal_index = 0; terminal_index <= table.num_terminals; terminal_index += 1) {
 			ParseTableAction action = parse_table_action_at(&table, state_index, terminal_index);
 
-			if(action == ParseTableActionType_Error) {
-				fprintf(fp, "0x%08X, ", ParseTableActionType_Error);
-			} else {
-				fprintf(fp, "0x%08X, ", action);
-			}
+			fprintf(fp, "0x%08X, ", action);
 		}
 
 		fprintf(fp, "\n");
@@ -82,20 +88,62 @@ static void generate_table(FILE *fp, ParseTable table) {
 	fprintf(fp, "static const ParseTableGoto goto_table[%zu][%zu] = {\n", (size_t )table.num_states, (size_t) table.num_nonterminals);
 
 	for(size_t state_index = 0; state_index < table.num_states; state_index += 1) {
-		// One past the last terminal is the end of input
 		for(size_t nonterminal_index = 0; nonterminal_index < table.num_nonterminals; nonterminal_index += 1) {
 			ParseTableGoto g0t0 = parse_table_goto_at(&table, state_index, nonterminal_index);
 
-			if(g0t0 == ParseTableGotoError) {
-				fprintf(fp, "0x%08X, ", ParseTableGotoError);
-			} else {
-				fprintf(fp, "0x%08X, ", g0t0);
-			}
-
+			fprintf(fp, "0x%08X, ", g0t0);
 		}
 
 		fprintf(fp, "\n");
 	}
 
 	fprintf(fp, "};\n");
+}
+
+static void print_symbol(FILE *fp, Symbol s);
+static void print_token_definition(FILE *fp, Grammar g);
+
+static void generate_ast(FILE *fp, Grammar grammar) {
+	print_token_definition(fp, grammar);
+}
+
+static void print_token_definition(FILE *fp, Grammar g) {
+	// Types
+	fprintf(fp, "typedef enum TokenType {\n");
+
+	rule_set_iterate(g.rules, it1, {
+		// Only named lexical rules a syntax rule references are tokens
+		if(it1->mask & RuleMask_Token) {
+			fprintf(fp, "\tTokenType_");
+			print_symbol(fp, it1->identifier);
+			fprintf(fp, ",\n");
+		}
+	});
+
+	fprintf(fp, "} TokenType;\n");
+
+	// Lexeme definition
+	fprintf(fp, "typedef struct Lexeme {\n");
+	fprintf(fp, "\tconst char *data;\n");
+	fprintf(fp, "\tsize_t length;\n");
+	fprintf(fp, "} Lexeme;\n");
+	fprintf(fp, "typedef struct Token {\n");
+
+	// Token definition
+	fprintf(fp, "\tLexeme lexeme;\n");
+	fprintf(fp, "\tTokenType tag;\n");
+	fprintf(fp, "\tstruct {\n");
+	fprintf(fp, "\t\tsize_t row;\n");
+	fprintf(fp, "\t\tsize_t column;\n");
+	fprintf(fp, "\t} position;\n");
+	fprintf(fp, "} Token;\n");
+}
+
+
+static void print_symbol(FILE *fp, Symbol s) {
+	if(s.mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
+		fprintf(fp, "_%.*s%u", (int) s.lexeme.length, s.lexeme.data, s.mask >> SYMBOL_MASK_INDEX_OFFSET);
+	} else {
+		fprintf(fp, "%.*s", (int) s.lexeme.length, s.lexeme.data);
+	}
 }

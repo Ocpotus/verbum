@@ -7,8 +7,6 @@
 #include "../../lib/utf8.h/utf8.h"
 #include "../../lib/utf8file/utf8file.h"
 
-#include "../memory/memory.h"
-
 #include "lexer.h"
 
 
@@ -206,6 +204,8 @@ Token lexer_lex(Lexer *l) {
 		result.lexeme.data = "invalid";
 		result.lexeme.length = 7;
 		result.tag = TokenType_Invalid;
+
+		return result;
 	}
 
 	lexer_advance(l);
@@ -259,6 +259,15 @@ static Token lexer_lex_operator(Lexer *l) {
         case '=':
 		result.tag = TokenType_Equal;
                 break;
+	case ':':
+		if(lexer_peek_character(l) == '=') {
+			lexer_advance(l);
+			result.lexeme.length = 2;
+			result.tag = TokenType_ColonEqual;
+		} else {
+			result.tag = TokenType_Invalid;
+		}
+		break;
 	case '|':
 		result.tag = TokenType_Pipe;
 		break;

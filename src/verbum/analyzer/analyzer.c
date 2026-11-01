@@ -14,28 +14,38 @@
 #include "../rule_set/rule_set.h"
 #include "../raw_rule/raw_rule.h"
 
+#include "../../lib/log.c/log.h"
+
 #include "analyzer.h"
 
-static const char * const sub_expression_prefixes = "org";
 
-/* augmented_start
- *
- * Identifier of the augmented rule @start -> start, '@' cannot appear in a user identifier so it never collides
- */
+static const char * const sub_expression_prefixes = "org";
 static const Symbol augmented_start = {
 	.lexeme = { .data = "π", .length = 2 },
 	.mask = SymbolMask_None,
 };
 
+/* Context
+ *
+ * MEMBERS:
+ * 	num_*: sub expressions hoisted so far, shared by every rule so hoisted names never collide
+ * 	lexical_rules: names of every lexical (':=') rule
+ * 	lexical: true while hoisting a lexical rule
+ */
 typedef struct Context {
 	uint32_t num_repetition;
 	uint32_t num_optional;
 	uint32_t num_group;
+	SymbolSet lexical_rules;
+	bool lexical;
 } Context;
 
 static bool rule_referenced(RuleSet rules, Rule target);
 static cvector(Definition) hoist(Grammar *g, cvector(Token) body, size_t *position, TokenType sub_end_tag, Context *context);
 static Symbol create_sub_expression_identifier(TokenType tag, Context *context);
+static bool rule_derives_cycle(RuleSet rules, Symbol identifier, cvector(Symbol) *path, SymbolSet *done);
+static void check_raw_rules(cvector(RawRule) raw_rules, SymbolSet *lexical_rules);
+static void mark_tokens(Grammar *g);
 
 Grammar analyzer_analyze(cvector(RawRule) raw_rules) {
 	Grammar result = grammar_new();
@@ -44,11 +54,18 @@ Grammar analyzer_analyze(cvector(RawRule) raw_rules) {
 		.num_group = 0,
 		.num_optional = 0,
 		.num_repetition = 0,
+		.lexical_rules = symbol_set_new(),
+		.lexical = false,
 	};
+
+	check_raw_rules(raw_rules, &context.lexical_rules);
 
 	for(RawRule *it1 = cvector_begin(raw_rules); it1 != cvector_end(raw_rules); it1 += 1) {
 		size_t start_position = 0;
 		Symbol identifier = symbol_from_token(it1->identifier);
+
+		context.lexical = it1->lexical;
+
 		cvector(Definition) alternatives = hoist(&result, it1->definition, &start_position, TokenType_Invalid, &context);
 
 		for(Definition *it2 = cvector_begin(alternatives); it2 != cvector_end(alternatives); it2 += 1) {
@@ -57,12 +74,20 @@ Grammar analyzer_analyze(cvector(RawRule) raw_rules) {
 			}
 		}
 
-		symbol_set_insert(&result.nonterminals, identifier);
+		if(it1->lexical) {
+			rule_set_mark(&result.rules, identifier, RuleMask_Lexical);
+		} else {
+			symbol_set_insert(&result.nonterminals, identifier);
+		}
+
 		cvector_free(alternatives);
 	}
 
+	mark_tokens(&result);
+
 	rule_set_iterate(result.rules, rule, {
-		if(!rule_referenced(result.rules, *rule)) {
+		// Tokens are only referenced as terminals, so lexical rules look unreferenced
+		if(!(rule->mask & RuleMask_Lexical) && !rule_referenced(result.rules, *rule)) {
 			result.start = rule;
 			break;
 		}
@@ -77,6 +102,29 @@ Grammar analyzer_analyze(cvector(RawRule) raw_rules) {
 		result.start = rule_set_insert(&result.rules, augmented_start, definition);
 		symbol_set_insert(&result.nonterminals, augmented_start);
 	}
+
+	rule_set_iterate(result.rules, it1, {
+		cvector(Symbol) path = NULL;
+		SymbolSet done = symbol_set_new();
+
+		if(rule_derives_cycle(result.rules, it1->identifier, &path, &done)) {
+			rule_set_mark(&result.rules, it1->identifier, RuleMask_Cycle);
+		}
+
+		cvector_free(path);
+		symbol_set_delete(done);
+	});
+
+	// The lexer can only be built from regular rules
+	for(const RawRule *it1 = cvector_begin(raw_rules); it1 != cvector_end(raw_rules); it1 += 1) {
+		if(it1->lexical && (rule_set_get(result.rules, symbol_from_token(it1->identifier)).mask & RuleMask_Cycle)) {
+			log_error("%u:%u: lexical rule '%.*s' is not regular, it derives a cycle",
+					it1->identifier.pos.row, it1->identifier.pos.col,
+					(int) it1->identifier.lexeme.length, it1->identifier.lexeme.data);
+		}
+	}
+
+	symbol_set_delete(context.lexical_rules);
 
 	return result;
 }
@@ -126,18 +174,37 @@ static cvector(Definition) hoist(Grammar *g, cvector(Token) definition, size_t *
 
 			cvector_free(sub_alternatives);
 			definition_push_back(&current, sub_identifier);
-			symbol_set_insert(&g->nonterminals, sub_identifier);
+
+			if(context->lexical) {
+				rule_set_mark(&g->rules, sub_identifier, RuleMask_Lexical);
+			} else {
+				symbol_set_insert(&g->nonterminals, sub_identifier);
+			}
 		} else if(current_token.tag == TokenType_Single_Literal || current_token.tag == TokenType_Double_Literal) {
 			Symbol terminal = symbol_from_token(current_token);
 
 			definition_push_back(&current, terminal);
-			symbol_set_insert(&g->terminals, terminal);
+
+			// Literals inside lexical rules are text for the lexer, not parser terminals
+			if(!context->lexical) {
+				symbol_set_insert(&g->terminals, terminal);
+			}
+
 			*position += 1;
 		} else if(current_token.tag == TokenType_Identifier) {
-			Symbol nonterminal = symbol_from_token(current_token);
+			Symbol reference = symbol_from_token(current_token);
 
-			definition_push_back(&current, nonterminal);
-			symbol_set_insert(&g->nonterminals, nonterminal);
+			if(context->lexical) {
+				// Kept as a plain reference, the lexer inlines it
+			} else if(symbol_set_contains(context->lexical_rules, reference)) {
+				// A syntax rule referencing a lexical rule sees it as a token
+				reference.mask |= SymbolMask_Terminal;
+				symbol_set_insert(&g->terminals, reference);
+			} else {
+				symbol_set_insert(&g->nonterminals, reference);
+			}
+
+			definition_push_back(&current, reference);
 			*position += 1;
 		} else if(current_token.tag == TokenType_RightBrace ||
 			  current_token.tag == TokenType_RightBracket ||
@@ -164,41 +231,12 @@ static cvector(Definition) hoist(Grammar *g, cvector(Token) definition, size_t *
 	return result;
 }
 
-/* static uint32_t classify_sub_expression(TokenType tag, Context *context) {
-	// Lowest 4 bits are metadata flags, the Nth index lives in the remaining 28 bits
-	const uint32_t offset = 4;
-	uint32_t result = SymbolMask_None;
-
-	switch(tag) {
-	case TokenType_LeftParenthesis:
-		context->num_group += 1;
-		result |= SymbolMask_Group;
-		result |= context->num_group << offset;
-		break;
-	case TokenType_LeftBrace:
-		context->num_repetition += 1;
-		result |= SymbolMask_Repetition;
-		result |= context->num_repetition << offset;
-		break;
-	case TokenType_LeftBracket:
-		context->num_optional += 1;
-		result |= SymbolMask_Optional;
-		result |= context->num_optional << offset;
-		break;
-	default:
-		// Error
-		break;
-	}
-
-	return result;
-} */
-
 static Symbol create_sub_expression_identifier(TokenType tag, Context *context) {
 	Symbol result = {
 		.lexeme = { 0 },
 		.mask = SymbolMask_None,
 	};
-	static const uint8_t offset = 4;
+	static const uint8_t offset = SYMBOL_MASK_INDEX_OFFSET;
 
 	switch(tag) {
 	case TokenType_LeftParenthesis:
@@ -217,8 +255,7 @@ static Symbol create_sub_expression_identifier(TokenType tag, Context *context) 
 			.length = 1,
 		};
 		result.mask |= SymbolMask_Repetition;
-		result.mask |= context->num_repetition << offset;
-		break;
+		result.mask |= context->num_repetition << offset; break;
 	case TokenType_LeftBracket:
 		context->num_optional += 1;
 		result.lexeme = (Lexeme) {
@@ -238,6 +275,11 @@ static Symbol create_sub_expression_identifier(TokenType tag, Context *context) 
 
 static bool rule_referenced(RuleSet rules, Rule target) {
 	rule_set_iterate(rules, it1, {
+		// Only syntax rules can reference the start rule
+		if(it1->mask & RuleMask_Lexical) {
+			continue;
+		}
+
 		for(Definition *it2 = cvector_begin(it1->definitions); it2 != cvector_end(it1->definitions); it2 += 1) {
 			for(Symbol *it3 = cvector_begin(*it2); it3 != cvector_end(*it2); it3 += 1) {
 				if(symbol_equals(*it3, target.identifier)) {
@@ -248,4 +290,136 @@ static bool rule_referenced(RuleSet rules, Rule target) {
 	});
 
 	return false;
+}
+
+// AI generated
+/* rule_derives_cycle
+ *
+ * Depth first search for a cycle reachable from a rule, the rule itself need not be on the cycle.
+ * A repetition's reference to itself is ignored, it only encodes the repetition.
+ *
+ * PARAMETERS:
+ * 	rules: rules to search
+ * 	identifier: rule to search from
+ * 	path: rules on the current search path, a reference back into it is a cycle
+ * 	done: rules already fully searched without finding a cycle
+ *
+ * RETURNS:
+ * 	true if a cycle can be derived from identifier, false if not
+ */
+static bool rule_derives_cycle(RuleSet rules, Symbol identifier, cvector(Symbol) *path, SymbolSet *done) {
+	cvector(Definition) definitions = rule_set_get(rules, identifier).definitions;
+
+	cvector_push_back(*path, identifier);
+
+	for(Definition *it1 = cvector_begin(definitions); it1 != cvector_end(definitions); it1 += 1) {
+		for(Symbol *it2 = cvector_begin(*it1); it2 != cvector_end(*it1); it2 += 1) {
+			if(it2->mask & SymbolMask_Terminal) {
+				continue;
+			}
+
+			// Hoisting appends a repetition to its own alternatives (_r = X _r | ε), that loop is
+			// how a repetition is encoded and not a cycle in the user's grammar
+			if((it2->mask & SymbolMask_Repetition) && symbol_equals(*it2, identifier)) {
+				continue;
+			}
+
+			for(Symbol *it3 = cvector_begin(*path); it3 != cvector_end(*path); it3 += 1) {
+				if(symbol_equals(*it2, *it3)) {
+					return true;
+				}
+			}
+
+			if(symbol_set_contains(*done, *it2)) {
+				continue;
+			}
+
+			if(rule_derives_cycle(rules, *it2, path, done)) {
+				return true;
+			}
+		}
+	}
+
+	cvector_pop_back(*path);
+	symbol_set_insert(done, identifier);
+
+	return false;
+}
+
+/* check_raw_rules
+ *
+ * Checks how lexical (':=') rules are used, working on raw rules so reports keep their position.
+ * Text cannot be constructed from syntax, so a lexical rule referencing a syntax rule is an error.
+ *
+ * PARAMETERS:
+ * 	raw_rules: every rule as written
+ * 	lexical_rules: filled with the name of every lexical rule
+ */
+static void check_raw_rules(cvector(RawRule) raw_rules, SymbolSet *lexical_rules) {
+	SymbolSet syntax_rules = symbol_set_new();
+	SymbolSet referenced = symbol_set_new();
+
+	for(const RawRule *it1 = cvector_begin(raw_rules); it1 != cvector_end(raw_rules); it1 += 1) {
+		symbol_set_insert(it1->lexical ? lexical_rules : &syntax_rules, symbol_from_token(it1->identifier));
+	}
+
+	if(symbol_set_size(syntax_rules) == 0 && cvector_size(raw_rules) > 0) {
+		log_error("grammar has no syntax rules, at least one rule must be defined with '='");
+	}
+
+	for(const RawRule *it1 = cvector_begin(raw_rules); it1 != cvector_end(raw_rules); it1 += 1) {
+		Symbol identifier = symbol_from_token(it1->identifier);
+
+		for(const Token *it2 = cvector_begin(it1->definition); it2 != cvector_end(it1->definition); it2 += 1) {
+			if(it2->tag != TokenType_Identifier) {
+				continue;
+			}
+
+			Symbol reference = symbol_from_token(*it2);
+
+			// A rule referencing itself does not count as being used
+			if(!symbol_equals(reference, identifier)) {
+				symbol_set_insert(&referenced, reference);
+			}
+
+			if(it1->lexical && symbol_set_contains(syntax_rules, reference)) {
+				log_error("%u:%u: lexical rule '%.*s' references syntax rule '%.*s'",
+						it2->pos.row, it2->pos.col,
+						(int) it1->identifier.lexeme.length, it1->identifier.lexeme.data,
+						(int) it2->lexeme.length, it2->lexeme.data);
+			}
+		}
+	}
+
+	for(const RawRule *it1 = cvector_begin(raw_rules); it1 != cvector_end(raw_rules); it1 += 1) {
+		if(it1->lexical && !symbol_set_contains(referenced, symbol_from_token(it1->identifier))) {
+			log_warn("%u:%u: lexical rule '%.*s' is never referenced",
+					it1->identifier.pos.row, it1->identifier.pos.col,
+					(int) it1->identifier.lexeme.length, it1->identifier.lexeme.data);
+		}
+	}
+
+	symbol_set_delete(syntax_rules);
+	symbol_set_delete(referenced);
+}
+
+/* mark_tokens
+ *
+ * Marks every lexical rule a syntax rule references as a token. Syntax rules reference them as
+ * terminals named after the rule, literals keep their quotes so they never name a rule.
+ */
+static void mark_tokens(Grammar *g) {
+	rule_set_iterate(g->rules, it1, {
+		if(it1->mask & RuleMask_Lexical) {
+			continue;
+		}
+
+		for(Definition *it2 = cvector_begin(it1->definitions); it2 != cvector_end(it1->definitions); it2 += 1) {
+			for(Symbol *it3 = cvector_begin(*it2); it3 != cvector_end(*it2); it3 += 1) {
+				if(it3->mask & SymbolMask_Terminal) {
+					rule_set_mark(&g->rules, symbol_new(it3->lexeme, SymbolMask_None), RuleMask_Token);
+				}
+			}
+		}
+	});
 }

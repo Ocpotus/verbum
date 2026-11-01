@@ -1,6 +1,8 @@
 #ifndef VERBUM_RAW_RULE_H
 #define VERBUM_RAW_RULE_H
 
+#include <stdbool.h>
+
 #include "../../lib/c-vector/cvector.h"
 
 #include "../token/token.h"
@@ -12,11 +14,13 @@
  *
  * MEMBERS:
  * 	identifier: rule name
- * 	definition: every token between '=' and ';' excluding ','
+ * 	definition: every token between '=' (or ':=') and ';' excluding ','
+ * 	lexical: true if defined with ':=', the rule is constructed from text
  */
 typedef struct RawRule {
 	Token identifier;
 	cvector(Token) definition;
+	bool lexical;
 } RawRule;
 
 void raw_rule_delete(RawRule *rr);

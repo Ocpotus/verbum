@@ -1,145 +1,1219 @@
-Crate = { [ Attribute ] , Item } ;
+crate					= { crate_item } ;
 
-Item = [ Visibility ] , ( Function | Struct | Enum | Union | Trait | Implementation | UseDeclaration | Module | TypeAlias | MacroRules | MacroInvocation | ExternBlock | ConstBlock ) ;
+crate_item				= inner_attribute
+					| item
+					;
 
-Visibility = "pub" , [ "(" , ( "crate" | "self" | "super" | "in" , Path ) , ")" ] ;
+item					= outer_attribute, item
+					| visibility, vis_item
+					| vis_item
+					| macro_item
+					;
 
-Attribute = "#" , [ "!" ] , "[" , MetaItem , "]" ;
-MetaItem = Identifier , [ "(" , [ MetaItem , { "," , MetaItem } ] , ")" | "=" , Literal ] ;
+vis_item				= module
+					| extern_crate
+					| use_declaration
+					| function
+					| type_alias
+					| struct
+					| enumeration
+					| union
+					| constant_item
+					| static_item
+					| trait
+					| implementation
+					| extern_block
+					;
 
-UseDeclaration = "use" , Path , [ "::" , ( "*" | "{" , Path , { "," , Path } , "}" ) ] , ";" ;
+macro_item				= path_in_expression, "!", "(", { token_tree }, ")", ";"
+					| path_in_expression, "!", "[", { token_tree }, "]", ";"
+					| path_in_expression, "!", "{", { token_tree }, "}"
+					| macro_rules_definition
+					;
 
-Module = "mod" , Identifier , ( ";" | "{" , { [ Attribute ] , Item } , "}" ) ;
+macro_rules_definition			= "macro_rules", "!", ident, "(", { token_tree }, ")", ";"
+					| "macro_rules", "!", ident, "[", { token_tree }, "]", ";"
+					| "macro_rules", "!", ident, "{", { token_tree }, "}"
+					;
 
-TypeAlias = "type" , Identifier , [ GenericParams ] , [ WhereClause ] , "=" , Type , ";" ;
+visibility				= "pub"
+					| restricted_visibility
+					;
 
-ConstBlock = "const" , ( Identifier | "_" ) , ":" , Type , "=" , Expression , ";" ;
+restricted_visibility			= "pub", "(", "crate", ")"
+					| "pub", "(", "self", ")"
+					| "pub", "(", "super", ")"
+					| "pub", "(", "in", simple_path, ")"
+					;
 
-ExternBlock = [ "unsafe" ] , "extern" , [ StringLiteral ] , "{" , { [ Attribute ] , [ Visibility ] , ExternItem } , "}" ;
-ExternItem = ( "fn" , Identifier , [ GenericParams ] , ParamList , [ "->" , Type ] , [ WhereClause ] , ";" 
-             | "static" , [ "mut" ] , Identifier , ":" , Type , ";" ) ;
+module					= "mod", ident, ";"
+					| "mod", ident, "{", { crate_item }, "}"
+					;
 
-Function = [ "extern" , [ StringLiteral ] ] , [ "unsafe" ] , [ "async" ] , [ "const" ] , "fn" , Identifier , [ GenericParams ] , ParamList , [ "->" , Type ] , [ WhereClause ] , Block ;
+extern_crate				= "extern", "crate", ident, [ "as", ( ident | "_" ) ], ";"
+					| "extern", "crate", "self", [ "as", ( ident | "_" ) ], ";"
+					;
 
-ParamList = "(" , [ Param , { "," , Param } ] , [ "," ] , ")" ;
-Param = [ "mut" ] , Pattern , ":" , Type | SelfParam ;
-SelfParam = [ "&" ] , [ Lifetime ] , [ "mut" ] , "self" ;
+use_declaration				= "use", use_tree, ";" ;
 
-Struct = "struct" , Identifier , [ GenericParams ] , [ WhereClause ] , ( StructFields | TupleFields | ";" ) ;
-StructFields = "{" , [ Field , { "," , Field } ] , [ "," ] , "}" ;
-Field = [ [ Attribute ] , Visibility ] , Identifier , ":" , Type ;
-TupleFields = "(" , [ [ Attribute ] , Visibility , Type , { "," , Type } ] , [ "," ] , ")" , ";" ;
+use_tree				= "*"
+					| "::", "*"
+					| simple_path, "::", "*"
+					| "{", [ use_tree_list ], "}"
+					| "::", "{", [ use_tree_list ], "}"
+					| simple_path, "::", "{", [ use_tree_list ], "}"
+					| simple_path
+					| simple_path, "as", ident
+					| simple_path, "as", "_"
+					;
 
-Enum = "enum" , Identifier , [ GenericParams ] , [ WhereClause ] , "{" , [ Variant , { "," , Variant } ] , [ "," ] , "}" ;
-Variant = [ Attribute ] , Identifier , [ StructFields | TupleFields ] , [ "=" , Expression ] ;
+use_tree_list				= use_tree
+					| use_tree, ","
+					| use_tree, ",", use_tree_list
+					;
 
-Union = "union" , Identifier , [ GenericParams ] , [ WhereClause ] , StructFields ;
+simple_path				= simple_path_segment
+					| "::", simple_path_segment
+					| simple_path, "::", simple_path_segment
+					;
 
-Trait = [ "unsafe" ] , "trait" , Identifier , [ GenericParams ] , [ ":" , TypeBounds ] , [ WhereClause ] , "{" , { TraitItem } , "}" ;
-TraitItem = [ Attribute ] , ( FunctionSignature , ";" | Function | AssociatedType | AssociatedConst ) ;
-AssociatedType = "type" , Identifier , [ ":" , TypeBounds ] , [ "=" , Type ] , ";" ;
-AssociatedConst = "const" , Identifier , ":" , Type , [ "=" , Expression ] , ";" ;
-FunctionSignature = [ "extern" , [ StringLiteral ] ] , [ "unsafe" ] , [ "async" ] , [ "const" ] , "fn" , Identifier , [ GenericParams ] , ParamList , [ "->" , Type ] , [ WhereClause ] ;
+simple_path_segment			= ident
+					| "super"
+					| "self"
+					| "crate"
+					;
 
-Implementation = [ "unsafe" ] , "impl" , [ GenericParams ] , ( Type | Path , "for" , Type ) , [ WhereClause ] , "{" , { [ Attribute ] , ImplItem } , "}" ;
-ImplItem = [ Visibility ] , ( Function | AssociatedType | AssociatedConst | TypeAlias ) ;
+function				= [ function_qualifiers ], "fn", ident, [ generic_params ], "(", [ function_parameters ], ")", [ "->", type ], [ where_clause ], function_body ;
 
-WhereClause = "where" , WherePredicate , { "," , WherePredicate } ;
-WherePredicate = ( Type | Lifetime ) , ":" , TypeBounds ;
+function_body				= block_expression
+					| ";"
+					;
 
-Type = PrimitiveType | UserDefinedType | ReferenceType | RawPointerType | ArrayType | SliceType | TupleType | FnPointerType | ImplTraitType | DynTraitType | NeverType | MacroInvocation | InferredType ;
-PrimitiveType = "i32" | "i64" | "i128" | "u32" | "u64" | "u128" | "isize" | "usize" | "f32" | "f64" | "bool" | "char" | "str" ;
-UserDefinedType = Path , [ GenericArgs ] ;
-ReferenceType = "&" , [ Lifetime ] , [ "mut" ] , Type ;
-RawPointerType = "*" , ( "const" | "mut" ) , Type ;
-ArrayType = "[" , Type , ";" , Expression , "]" ;
-SliceType = "[" , Type , "]" ;
-TupleType = "(" , [ Type , { "," , Type } ] , [ "," ] , ")" ;
-FnPointerType = [ "unsafe" ] , [ "extern" , [ StringLiteral ] ] , "fn" , ParamList , [ "->" , Type ] ;
-ImplTraitType = "impl" , TypeBounds ;
-DynTraitType = "dyn" , TypeBounds ;
-NeverType = "!" ;
-InferredType = "_" ;
+function_qualifiers			= "const", [ "async" ], [ item_safety ], [ abi ]
+					| "async", [ item_safety ], [ abi ]
+					| item_safety, [ abi ]
+					| abi
+					;
 
-GenericParams = "<" , GenericParam , { "," , GenericParam } , ">" ;
-GenericParam = Lifetime [ ":" , LifetimeBounds ] | Identifier , [ ":" , TypeBounds ] | "const" , Identifier , ":" , Type ;
-TypeBounds = TypeBound , { "+" , TypeBound } ;
-TypeBound = [ "?" ] , ( Path | Lifetime ) ;
-LifetimeBounds = Lifetime , { "+" , Lifetime } ;
+item_safety				= "unsafe" ;
 
-GenericArgs = "<" , GenericArg , { "," , GenericArg } , ">" ;
-GenericArg = Lifetime | Type | Binding | Expression ;
-Binding = Identifier , "=" , Type ;
+abi					= "extern"
+					| "extern", STRING_LITERAL
+					;
 
-Block = [ "unsafe" ] , "{" , { Statement } , [ Expression ] , "}" ;
+function_parameters			= self_param
+					| self_param, ","
+					| self_param, ",", function_param_list
+					| self_param, ",", function_param_list, ","
+					| function_param_list
+					| function_param_list, ","
+					;
 
-Statement = LetStatement | ExpressionStatement | Item | ";" ;
-LetStatement = [ Attribute ] , "let" , Pattern , [ ":" , Type ] , [ "=" , Expression ] , [ "else" , Block ] , ";" ;
-ExpressionStatement = Expression , ( ";" | "" ) ;
+function_param_list			= function_param
+					| function_param_list, ",", function_param
+					;
 
-Expression = Literal | Identifier | Path | Block | Assignment | BinaryExpr | UnaryExpr | CastExpr
-           | MatchExpr | IfExpr | LoopExpr | CallExpr | MethodCallExpr | FieldAccessExpr | RangeExpr
-           | IndexExpr | ClosureExpr | MacroInvocation | ReturnExpr | BreakExpr | ContinueExpr 
-           | AwaitExpr | TryExpr | StructLiteral | TupleLiteral | ArrayLiteral ;
+function_param				= pattern_no_top_alt, ":", type
+					| pattern_no_top_alt, ":", "..."
+					| "..."
+					;
 
-Assignment = Expression , ( "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ) , Expression ;
-BinaryExpr = Expression , ( "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "&" | "|" | "^" | "<<" | ">>" ) , Expression ;
-UnaryExpr = ( "-" | "*" | "!" | "&" , [ "mut" ] ) , Expression ;
-CastExpr = Expression , "as" , Type ;
+self_param				= "self"
+					| "mut", "self"
+					| "&", "self"
+					| "&", "mut", "self"
+					| "&", LIFETIME, "self"
+					| "&", LIFETIME, "mut", "self"
+					| "self", ":", type
+					| "mut", "self", ":", type
+					;
 
-IfExpr = "if" , ( Expression | "let" , Pattern , "=" , Expression ) , Block , [ "else" , ( Block | IfExpr ) ] ;
-LoopExpr = [ Label ] , ( "loop" | "while" , ( Expression | "let" , Pattern , "=" , Expression ) | "for" , Pattern , "in" , Expression ) , Block ;
-Label = "'" , Identifier , ":" ;
+type_alias				= "type", ident, [ generic_params ], [ ":", type_param_bounds ], [ where_clause ], [ "=", type, [ where_clause ] ], ";" ;
 
-CallExpr = Expression , "(" , [ Expression , { "," , Expression } ] , [ "," ] , ")" ;
-MethodCallExpr = Expression , "." , Identifier , [ "::" , GenericArgs ] , "(" , [ Expression , { "," , Expression } ] , [ "," ] , ")" ;
-FieldAccessExpr = Expression , "." , ( Identifier | IntegerLiteral ) ;
-IndexExpr = Expression , "[" , Expression , "]" ;
-RangeExpr = [ Expression ] , ( ".." | "..=" ) , [ Expression ] ;
+struct					= "struct", ident, [ generic_params ], struct_rest ;
 
-StructLiteral = Path , "{" , [ StructLiteralField , { "," , StructLiteralField } ] , [ "," , ".." , Expression ] , "}" ;
-StructLiteralField = ( Identifier , [ ":" , Expression ] ) | BaseStructFields ;
-BaseStructFields = ".." , Expression ;
+struct_rest				= where_clause, struct_body
+					| struct_body
+					| "(", [ tuple_fields ], ")", [ where_clause ], ";"
+					;
 
-TupleLiteral = "(" , Expression , "," , [ Expression , { "," , Expression } ] , ")" ;
-ArrayLiteral = "[" , ( [ Expression , { "," , Expression } ] | Expression , ";" , Expression ) , "]" ;
+struct_body				= "{", [ struct_fields ], "}"
+					| ";"
+					;
 
-ClosureExpr = [ "move" ] , [ "static" | "async" ] , "|" , [ ClosureParam , { "," , ClosureParam } ] , "|" , [ "->" , Type ] , ( Expression | Block ) ;
-ClosureParam = Pattern , [ ":" , Type ] ;
+struct_fields				= struct_field
+					| struct_field, ","
+					| struct_field, ",", struct_fields
+					;
 
-MatchExpr = "match" , Expression , "{" , { MatchArm } , "}" ;
-MatchArm = [ Attribute ] , Pattern , [ "if" , Expression ] , "=>" , ( Expression , "," | Block ) ;
+struct_field				= [ outer_attributes ], [ visibility ], ident, ":", type ;
 
-MacroInvocation = Path , "!" , ( "(" , { MacroArg } , ")" | "[" , { MacroArg } , "]" | "{" , { MacroArg } , "}" ) ;
-MacroArg = Token | Expression | Statement ;
+tuple_fields				= tuple_field
+					| tuple_field, ","
+					| tuple_field, ",", tuple_fields
+					;
 
-MacroRules = "macro_rules" , "!" , Identifier , "{" , { MacroRule } , "}" ;
-MacroRule = "(" , { MacroPattern } , ")" , "=>" , "{" , { MacroExpansion } , "}" , ";" ;
+tuple_field				= [ outer_attributes ], tuple_field_body ;
 
-ReturnExpr = "return" , [ Expression ] ;
-BreakExpr = "break" , [ Label ] , [ Expression ] ;
-ContinueExpr = "continue" , [ Label ] ;
-AwaitExpr = Expression , "." , "await" ;
-TryExpr = Expression , "?" ;
+tuple_field_body			= type
+					| restricted_visibility, type
+					| "pub", type_no_paren
+					;
 
-Path = [ "::" ] , PathSegment , { "::" , PathSegment } ;
-PathSegment = Identifier , [ "::" , GenericArgs ] | "super" | "self" | "Self" | "crate" ;
+enumeration				= "enum", ident, [ generic_params ], [ where_clause ], "{", [ enum_variants ], "}" ;
 
-Pattern = "_" | Literal | Identifier | Path | RefPattern | StructPattern | TuplePattern | SlicePattern | RangePattern | OrPattern ;
-RefPattern = [ "ref" ] , [ "mut" ] , Identifier , [ "@" , Pattern ] ;
-StructPattern = Path , "{" , [ FieldPattern , { "," , FieldPattern } ] , [ "," , ".." ] , "}" ;
-FieldPattern = ( Identifier , ":" , Pattern ) | Identifier ;
-TuplePattern = "(" , [ Pattern , { "," , Pattern } ] , ")" ;
-SlicePattern = "[" , [ Pattern , { "," , Pattern } ] , "]" ;
-RangePattern = ( Literal | Path ) , ( ".." | "..=" ) , ( Literal | Path ) ;
-OrPattern = Pattern , { "|" , Pattern } ;
+enum_variants				= enum_variant
+					| enum_variant, ","
+					| enum_variant, ",", enum_variants
+					;
 
-Identifier = Letter , { Letter | Digit | "_" } ;
-Lifetime = "'" , Identifier ;
+enum_variant				= [ outer_attributes ], ident, [ enum_variant_fields ], [ "=", expression ] ;
 
-Literal = IntegerLiteral | FloatLiteral | StringLiteral | RawStringLiteral | ByteStringLiteral | CharLiteral | BooleanLiteral ;
-BooleanLiteral = "true" | "false" ;
+enum_variant_fields			= "{", [ struct_fields ], "}"
+					| "(", [ tuple_fields ], ")"
+					;
 
-Letter = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
-       | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
-Digit  = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+union					= "union", ident, [ generic_params ], [ where_clause ], "{", [ struct_fields ], "}" ;
+
+constant_item				= "const", ( ident | "_" ), ":", type, [ "=", expression ], ";" ;
+
+static_item				= "static", [ "mut" ], ident, ":", type, [ "=", expression ], ";" ;
+
+trait					= [ item_safety ], "trait", ident, [ generic_params ], [ ":", [ type_param_bounds ] ], [ where_clause ], "{", { associated_entry }, "}" ;
+
+implementation				= [ item_safety ], "impl", [ generic_params ], implementation_rest ;
+
+implementation_rest			= type_no_qualified, [ where_clause ], "{", { associated_entry }, "}"
+					| type_path, "for", type, [ where_clause ], "{", { associated_entry }, "}"
+					| "!", type_path, "for", type, [ where_clause ], "{", { associated_entry }, "}"
+					;
+
+associated_entry			= inner_attribute
+					| associated_item
+					;
+
+associated_item				= outer_attribute, associated_item
+					| visibility, associated_body
+					| associated_body
+					| macro_item
+					;
+
+associated_body				= type_alias
+					| constant_item
+					| function
+					;
+
+extern_block				= abi, "{", { extern_entry }, "}"
+					| item_safety, abi, "{", { extern_entry }, "}"
+					;
+
+extern_entry				= inner_attribute
+					| external_item
+					;
+
+external_item				= outer_attribute, external_item
+					| visibility, external_body
+					| external_body
+					| macro_item
+					;
+
+external_body				= static_item
+					| function
+					;
+
+outer_attributes			= outer_attribute, { outer_attribute } ;
+
+outer_attribute				= "#", "[", attribute, "]" ;
+
+inner_attribute				= "#", "!", "[", attribute, "]" ;
+
+attribute				= simple_path, [ attribute_input ]
+					| "unsafe", "(", simple_path, [ attribute_input ], ")"
+					;
+
+attribute_input				= delim_token_tree
+					| "=", expression
+					;
+
+delim_token_tree			= "(", { token_tree }, ")"
+					| "[", { token_tree }, "]"
+					| "{", { token_tree }, "}"
+					;
+
+token_tree				= token
+					| delim_token_tree
+					;
+
+token					= BYTE_LITERAL | BYTE_STRING_LITERAL | CHAR_LITERAL | C_STRING_LITERAL | FLOAT_LITERAL | IDENTIFIER
+					| INTEGER_LITERAL | LIFETIME | RAW_BYTE_STRING_LITERAL | RAW_C_STRING_LITERAL | RAW_STRING_LITERAL | STRING_LITERAL
+					| "Self" | "_" | "as" | "async" | "await" | "break"
+					| "const" | "continue" | "crate" | "dyn" | "else" | "enum"
+					| "extern" | "false" | "fn" | "for" | "if" | "impl"
+					| "in" | "let" | "loop" | "macro_rules" | "match" | "mod"
+					| "move" | "mut" | "pub" | "ref" | "return" | "self"
+					| "static" | "struct" | "super" | "trait" | "true" | "type"
+					| "union" | "unsafe" | "use" | "where" | "while" | "!"
+					| ";" | "*" | "::" | "," | "->" | ":"
+					| "..." | "&" | "=" | "#" | "<" | ">"
+					| ">>" | "+" | "?" | "-" | "&&" | "|"
+					| "@" | ".." | "..=" | "=>" | "+=" | "-="
+					| "*=" | "/=" | "%=" | "&=" | "|=" | "^="
+					| "<<=" | ">>=" | "||" | "==" | "!=" | "<="
+					| ">=" | "^" | "<<" | "/" | "%" | "."
+					| "$" ;
+
+generic_params				= "<", ">"
+					| "<", generic_params_tail
+					;
+
+generic_params_tail			= generic_param, ">"
+					| generic_param, ",", ">"
+					| generic_param, ",", generic_params_tail
+					| generic_param_open, ">>"
+					;
+
+generic_param				= lifetime_param
+					| type_param
+					| const_param
+					;
+
+generic_param_open			= ident, ":", type_param_bounds_open ;
+
+lifetime_param				= LIFETIME, [ ":", [ lifetime_bounds ] ] ;
+
+lifetime_bounds				= LIFETIME
+					| LIFETIME, "+"
+					| LIFETIME, "+", lifetime_bounds
+					;
+
+type_param				= ident, [ ":", [ type_param_bounds ] ], [ "=", type ] ;
+
+const_param				= "const", ident, ":", type ;
+
+where_clause				= "where", [ where_items ] ;
+
+where_items				= where_item
+					| where_item, ","
+					| where_item, ",", where_items
+					;
+
+where_item				= LIFETIME, ":", [ lifetime_bounds ]
+					| type, ":", [ type_param_bounds ]
+					;
+
+type_param_bounds			= type_param_bound
+					| type_param_bound, "+"
+					| type_param_bound, "+", type_param_bounds
+					;
+
+type_param_bound			= LIFETIME
+					| trait_bound
+					| "use", generic_args
+					;
+
+trait_bound				= type_path
+					| "?", type_path
+					| for_lifetimes, type_path
+					| "?", for_lifetimes, type_path
+					;
+
+for_lifetimes				= "for", generic_params ;
+
+type_param_bounds_open			= trait_bound_open
+					| type_param_bound, "+", type_param_bounds_open
+					;
+
+trait_bound_open			= type_path_open
+					| "?", type_path_open
+					| for_lifetimes, type_path_open
+					;
+
+generic_args				= "<", ">"
+					| "<", generic_args_tail
+					;
+
+generic_args_tail			= generic_arg, ">"
+					| generic_arg, ",", ">"
+					| generic_arg, ",", generic_args_tail
+					| generic_arg_open, ">>"
+					;
+
+generic_arg				= LIFETIME
+					| type
+					| generic_const_arg
+					| ident, "=", type
+					| ident, ":", type_param_bounds
+					;
+
+generic_const_arg			= block_expression
+					| literal_expression
+					| "-", literal_expression
+					;
+
+generic_args_open			= generic_arg
+					| generic_arg, ","
+					| generic_arg, ",", generic_args_open
+					;
+
+generic_arg_open			= type_open
+					| ident, "=", type_open
+					| ident, ":", type_param_bounds_open
+					;
+
+type					= type_no_bounds
+					| type_with_bounds
+					;
+
+type_no_paren				= type_core
+					| qualified_type_path
+					| type_with_bounds
+					;
+
+type_no_qualified			= type_core
+					| parenthesized_type
+					| type_with_bounds
+					;
+
+type_with_bounds			= "impl", type_param_bound, "+", type_param_bounds
+					| "dyn", type_param_bound, "+", type_param_bounds
+					;
+
+type_no_bounds				= parenthesized_type
+					| qualified_type_path
+					| type_core
+					;
+
+parenthesized_type			= "(", ")"
+					| "(", type, ")"
+					| "(", type, ",", ")"
+					| "(", type, ",", type_list, ")"
+					| "(", type, ",", type_list, ",", ")"
+					;
+
+type_list				= type
+					| type_list, ",", type
+					;
+
+type_core				= type_path
+					| type_path_base, "!", delim_token_tree
+					| "impl", trait_bound
+					| "dyn", trait_bound
+					| "!"
+					| "_"
+					| raw_pointer_prefix, type_no_bounds
+					| reference_prefix, type_no_bounds
+					| "[", type, "]"
+					| "[", type, ";", expression, "]"
+					| bare_function_type
+					;
+
+reference_prefix			= "&"
+					| "&", LIFETIME
+					| "&", "mut"
+					| "&", LIFETIME, "mut"
+					| "&&"
+					| "&&", "mut"
+					;
+
+raw_pointer_prefix			= "*", "const"
+					| "*", "mut"
+					;
+
+type_path				= type_path_base
+					| type_path_base, function_sugar_args
+					| type_path_base, function_sugar_args, "->", type_no_bounds
+					;
+
+type_path_base				= type_path_segment
+					| "::", type_path_segment
+					| type_path_base, "::", type_path_segment
+					| type_path_base, "::", generic_args
+					;
+
+type_path_segment			= path_ident_segment
+					| path_ident_segment, generic_args
+					;
+
+function_sugar_args
+					| path_ident_segment, function_sugar_args, "->", type_no_bounds
+					;
+
+function_sugar_args			= "(", ")"
+					| "(", type_list, ")"
+					| "(", type_list, ",", ")"
+					;
+
+qualified_type_path			= qualified_self, "::", type_path_segment
+					| qualified_type_path, "::", type_path_segment
+					;
+
+qualified_self				= "<", type, ">"
+					| "<", type, "as", type_path, ">"
+					| "<", type_open, ">>"
+					| "<", type, "as", type_path_open, ">>"
+					;
+
+bare_function_type			= [ for_lifetimes ], [ bare_function_qualifiers ], "fn", "(", [ function_pointer_params ], ")", [ "->", type_no_bounds ] ;
+
+bare_function_qualifiers		= item_safety, [ abi ]
+					| abi
+					;
+
+function_pointer_params			= function_pointer_param
+					| function_pointer_param, ","
+					| function_pointer_param, ",", function_pointer_params
+					| "..."
+					;
+
+function_pointer_param			= type
+					| ident, ":", type
+					| "_", ":", type
+					;
+
+type_open				= type_no_bounds_open
+					| "impl", type_param_bound, "+", type_param_bounds_open
+					| "dyn", type_param_bound, "+", type_param_bounds_open
+					;
+
+type_no_bounds_open			= type_path_open
+					| reference_prefix, type_no_bounds_open
+					| raw_pointer_prefix, type_no_bounds_open
+					| "impl", trait_bound_open
+					| "dyn", trait_bound_open
+					;
+
+type_path_open				= path_ident_segment, "<", generic_args_open
+					| "::", path_ident_segment, "<", generic_args_open
+					| type_path_base, "::", path_ident_segment, "<", generic_args_open
+					| type_path_base, "::", "<", generic_args_open
+					| type_path_base, function_sugar_args, "->", type_no_bounds_open
+					;
+
+path_in_expression			= path_ident_segment
+					| multi_segment_path
+					;
+
+multi_segment_path			= "::", path_ident_segment
+					| path_in_expression, "::", path_ident_segment
+					| path_in_expression, "::", generic_args
+					;
+
+qualified_path_in_expression		= qualified_self, "::", path_ident_segment
+					| qualified_path_in_expression, "::", path_ident_segment
+					| qualified_path_in_expression, "::", generic_args
+					;
+
+path_ident_segment			= ident
+					| "super"
+					| "self"
+					| "Self"
+					| "crate"
+					;
+
+ident					= IDENTIFIER
+					| "union"
+					;
+
+pattern					= [ "|" ], pattern_no_top_alt, { "|", pattern_no_top_alt } ;
+
+pattern_no_top_alt			= pattern_without_range
+					| range_pattern
+					;
+
+pattern_without_range			= pattern_core
+					| "mut", ident
+					| "mut", ident, "@", pattern_no_top_alt
+					;
+
+pattern_core				= literal_pattern
+					| identifier_pattern
+					| "_"
+					| ".."
+					| reference_pattern
+					| struct_pattern
+					| tuple_struct_pattern
+					| tuple_pattern
+					| slice_pattern
+					| path_pattern
+					| path_in_expression, "!", delim_token_tree
+					;
+
+identifier_pattern			= ident
+					| ident, "@", pattern_no_top_alt
+					| "ref", ident
+					| "ref", ident, "@", pattern_no_top_alt
+					| "ref", "mut", ident
+					| "ref", "mut", ident, "@", pattern_no_top_alt
+					;
+
+reference_pattern			= "&", pattern_core
+					| "&", "mut", pattern_without_range
+					| "&&", pattern_core
+					| "&&", "mut", pattern_without_range
+					;
+
+literal_pattern				= "true"
+					| "false"
+					| CHAR_LITERAL
+					| BYTE_LITERAL
+					| STRING_LITERAL
+					| RAW_STRING_LITERAL
+					| BYTE_STRING_LITERAL
+					| RAW_BYTE_STRING_LITERAL
+					| C_STRING_LITERAL
+					| RAW_C_STRING_LITERAL
+					| INTEGER_LITERAL
+					| "-", INTEGER_LITERAL
+					| FLOAT_LITERAL
+					| "-", FLOAT_LITERAL
+					;
+
+range_pattern				= range_pattern_bound, "..=", range_pattern_bound
+					| range_pattern_bound, "..", range_pattern_bound
+					| range_pattern_bound, ".."
+					| range_pattern_bound, "...", range_pattern_bound
+					| "..=", range_pattern_bound
+					;
+
+range_pattern_bound			= CHAR_LITERAL
+					| BYTE_LITERAL
+					| INTEGER_LITERAL
+					| "-", INTEGER_LITERAL
+					| FLOAT_LITERAL
+					| "-", FLOAT_LITERAL
+					| path_in_expression
+					| qualified_path_in_expression
+					;
+
+struct_pattern				= path_in_expression, "{", [ struct_pattern_elements ], "}" ;
+
+struct_pattern_elements			= struct_pattern_fields
+					| struct_pattern_fields, ","
+					| struct_pattern_fields, ",", ".."
+					| ".."
+					;
+
+struct_pattern_fields			= struct_pattern_field
+					| struct_pattern_fields, ",", struct_pattern_field
+					;
+
+struct_pattern_field			= INTEGER_LITERAL, ":", pattern
+					| ident, ":", pattern
+					| ident
+					| "ref", ident
+					| "mut", ident
+					| "ref", "mut", ident
+					;
+
+tuple_struct_pattern			= path_in_expression, "(", [ pattern_list, [ "," ] ], ")" ;
+
+tuple_pattern				= "(", ")"
+					| "(", pattern, ")"
+					| "(", pattern, ",", ")"
+					| "(", pattern, ",", pattern_list, ")"
+					| "(", pattern, ",", pattern_list, ",", ")"
+					;
+
+slice_pattern				= "[", [ pattern_list, [ "," ] ], "]" ;
+
+pattern_list				= pattern
+					| pattern_list, ",", pattern
+					;
+
+path_pattern				= multi_segment_path
+					| qualified_path_in_expression
+					;
+
+block_expression			= "{", [ block_items ], "}" ;
+
+block_items				= statement, [ block_items ]
+					| statement_expression
+					;
+
+statement				= ";"
+					| statement_item
+					| let_statement
+					| block_like_expression
+					| statement_expression, ";"
+					| outer_attribute, statement
+					| inner_attribute
+					;
+
+statement_item				= visibility, vis_item
+					| vis_item
+					| macro_rules_definition
+					;
+
+let_statement				= "let", pattern, [ ":", type ], [ "=", expression, [ "else", block_expression ] ], ";" ;
+
+block_like_expression			= block_like_common
+					| if_expression
+					;
+
+block_like_common			= block_like_no_struct
+					| block_expression
+					| labeled_expression
+					;
+
+block_like_no_struct			= unsafe_block
+					| async_block
+					| const_block
+					| loop_expression
+					| match_expression
+					| macro_invocation_brace
+					;
+
+unsafe_block				= "unsafe", block_expression ;
+
+async_block				= "async", block_expression
+					| "async", "move", block_expression
+					;
+
+const_block				= "const", block_expression ;
+
+labeled_expression			= LIFETIME, ":", loop_expression
+					| LIFETIME, ":", block_expression
+					;
+
+loop_expression				= "loop", block_expression
+					| "while", condition, block_expression
+					| "for", pattern, "in", expression_no_struct, block_expression
+					;
+
+condition				= expression_no_struct
+					| "let", pattern, "=", expression_no_struct
+					;
+
+if_expression				= "if", condition, block_expression
+					| "if", condition, block_expression, "else", block_expression
+					| "if", condition, block_expression, "else", if_expression
+					;
+
+if_else_expression			= "if", condition, block_expression, "else", block_expression
+					| "if", condition, block_expression, "else", if_else_expression
+					;
+
+match_expression			= "match", expression_no_struct, "{", [ match_arms ], "}" ;
+
+match_arms				= match_arm_head, "=>", match_arm_tail ;
+
+match_arm_head				= pattern
+					| pattern, "if", expression
+					| outer_attribute, match_arm_head
+					;
+
+match_arm_tail				= block_like_expression
+					| block_like_expression, ","
+					| block_like_expression, match_arms
+					| block_like_expression, ",", match_arms
+					| statement_expression
+					| statement_expression, ","
+					| statement_expression, ",", match_arms
+					;
+
+macro_invocation_brace			= path_in_expression, "!", "{", { token_tree }, "}" ;
+
+macro_invocation_no_brace		= path_in_expression, "!", "(", { token_tree }, ")"
+					| path_in_expression, "!", "[", { token_tree }, "]"
+					;
+
+expression				= assignment_expression
+					| closure_expression
+					| return_expression
+					| break_expression
+					| continue_expression
+					;
+
+assignment_expression			= range_expression
+					| range_expression, assignment_operator, expression
+					;
+
+assignment_operator			= "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ;
+
+range_expression			= lazy_or_expression
+					| lazy_or_expression, ".."
+					| lazy_or_expression, "..", lazy_or_expression
+					| lazy_or_expression, "..=", lazy_or_expression
+					| ".."
+					| "..", lazy_or_expression
+					| "..=", lazy_or_expression
+					;
+
+lazy_or_expression			= lazy_and_expression, { "||", lazy_and_expression } ;
+
+lazy_and_expression			= comparison_expression, { "&&", comparison_expression } ;
+
+multiplicative_expression		= cast_expression
+					| multiplicative_expression, multiplicative_operator, cast_expression
+					;
+
+multiplicative_no_cast			= unary_expression
+					| multiplicative_expression, multiplicative_operator, unary_expression
+					;
+
+additive_expression			= multiplicative_expression
+					| additive_expression, additive_operator, multiplicative_expression
+					;
+
+additive_no_cast			= multiplicative_no_cast
+					| additive_expression, additive_operator, multiplicative_no_cast
+					;
+
+shift_expression			= additive_expression
+					| shift_expression, shift_operator, additive_expression
+					;
+
+shift_no_cast				= additive_no_cast
+					| shift_expression, shift_operator, additive_no_cast
+					;
+
+bit_and_expression			= shift_expression
+					| bit_and_expression, "&", shift_expression
+					;
+
+bit_and_no_cast				= shift_no_cast
+					| bit_and_expression, "&", shift_no_cast
+					;
+
+bit_xor_expression			= bit_and_expression
+					| bit_xor_expression, "^", bit_and_expression
+					;
+
+bit_xor_no_cast				= bit_and_no_cast
+					| bit_xor_expression, "^", bit_and_no_cast
+					;
+
+bit_or_expression			= bit_xor_expression
+					| bit_or_expression, "|", bit_xor_expression
+					;
+
+bit_or_no_cast				= bit_xor_no_cast
+					| bit_or_expression, "|", bit_xor_no_cast
+					;
+
+comparison_expression			= bit_or_expression
+					| bit_or_expression, comparison_operator, bit_or_expression
+					| bit_or_no_cast, "<", bit_or_expression
+					;
+
+comparison_operator			= "==" | "!=" | ">" | "<=" | ">=" ;
+
+multiplicative_operator			= "*" | "/" | "%" ;
+
+additive_operator			= "+" | "-" ;
+
+shift_operator				= "<<" | ">>" ;
+
+cast_expression				= unary_expression
+					| cast_expression, "as", type_no_bounds
+					;
+
+unary_expression			= postfix_expression
+					| prefix_operator, unary_expression
+					;
+
+prefix_operator				= "-"
+					| "!"
+					| "*"
+					| "&"
+					| "&", "mut"
+					| "&&"
+					| "&&", "mut"
+					;
+
+postfix_expression			= primary_expression
+					| postfix_expression, postfix_suffix
+					;
+
+primary_expression			= statement_primary
+					| block_like_common
+					| if_else_expression
+					;
+
+expression_no_struct			= range_no_struct ;
+
+range_no_struct				= lazy_or_no_struct
+					| lazy_or_no_struct, ".."
+					| lazy_or_no_struct, "..", lazy_or_no_struct
+					| lazy_or_no_struct, "..=", lazy_or_no_struct
+					| ".."
+					| "..", lazy_or_no_struct
+					| "..=", lazy_or_no_struct
+					;
+
+lazy_or_no_struct			= lazy_and_no_struct, { "||", lazy_and_no_struct } ;
+
+lazy_and_no_struct			= comparison_no_struct, { "&&", comparison_no_struct } ;
+
+multiplicative_no_struct		= cast_no_struct
+					| multiplicative_no_struct, multiplicative_operator, cast_no_struct
+					;
+
+multiplicative_no_struct_no_cast	= unary_no_struct
+					| multiplicative_no_struct, multiplicative_operator, unary_no_struct
+					;
+
+additive_no_struct			= multiplicative_no_struct
+					| additive_no_struct, additive_operator, multiplicative_no_struct
+					;
+
+additive_no_struct_no_cast		= multiplicative_no_struct_no_cast
+					| additive_no_struct, additive_operator, multiplicative_no_struct_no_cast
+					;
+
+shift_no_struct				= additive_no_struct
+					| shift_no_struct, shift_operator, additive_no_struct
+					;
+
+shift_no_struct_no_cast			= additive_no_struct_no_cast
+					| shift_no_struct, shift_operator, additive_no_struct_no_cast
+					;
+
+bit_and_no_struct			= shift_no_struct
+					| bit_and_no_struct, "&", shift_no_struct
+					;
+
+bit_and_no_struct_no_cast		= shift_no_struct_no_cast
+					| bit_and_no_struct, "&", shift_no_struct_no_cast
+					;
+
+bit_xor_no_struct			= bit_and_no_struct
+					| bit_xor_no_struct, "^", bit_and_no_struct
+					;
+
+bit_xor_no_struct_no_cast		= bit_and_no_struct_no_cast
+					| bit_xor_no_struct, "^", bit_and_no_struct_no_cast
+					;
+
+bit_or_no_struct			= bit_xor_no_struct
+					| bit_or_no_struct, "|", bit_xor_no_struct
+					;
+
+bit_or_no_struct_no_cast		= bit_xor_no_struct_no_cast
+					| bit_or_no_struct, "|", bit_xor_no_struct_no_cast
+					;
+
+comparison_no_struct			= bit_or_no_struct
+					| bit_or_no_struct, comparison_operator, bit_or_no_struct
+					| bit_or_no_struct_no_cast, "<", bit_or_no_struct
+					;
+
+cast_no_struct				= unary_no_struct
+					| cast_no_struct, "as", type_no_bounds
+					;
+
+unary_no_struct				= postfix_no_struct
+					| prefix_operator, unary_no_struct
+					;
+
+postfix_no_struct			= primary_no_struct
+					| postfix_no_struct, postfix_suffix
+					;
+
+primary_no_struct			= primary_core
+					| block_like_no_struct
+					| if_else_expression
+					;
+
+statement_expression			= statement_assignment
+					| closure_expression
+					| return_expression
+					| break_expression
+					| continue_expression
+					;
+
+statement_assignment			= statement_range
+					| statement_range, assignment_operator, expression
+					;
+
+statement_range				= statement_lazy_or
+					| statement_lazy_or, ".."
+					| statement_lazy_or, "..", lazy_or_expression
+					| statement_lazy_or, "..=", lazy_or_expression
+					| ".."
+					| "..", lazy_or_expression
+					| "..=", lazy_or_expression
+					;
+
+statement_lazy_or			= statement_lazy_and, { "||", lazy_and_expression } ;
+
+statement_lazy_and			= statement_comparison, { "&&", comparison_expression } ;
+
+statement_multiplicative		= statement_cast
+					| statement_multiplicative, multiplicative_operator, cast_expression
+					;
+
+statement_multiplicative_no_cast	= statement_unary
+					| statement_multiplicative, multiplicative_operator, unary_expression
+					;
+
+statement_additive			= statement_multiplicative
+					| statement_additive, additive_operator, multiplicative_expression
+					;
+
+statement_additive_no_cast		= statement_multiplicative_no_cast
+					| statement_additive, additive_operator, multiplicative_no_cast
+					;
+
+statement_shift				= statement_additive
+					| statement_shift, shift_operator, additive_expression
+					;
+
+statement_shift_no_cast			= statement_additive_no_cast
+					| statement_shift, shift_operator, additive_no_cast
+					;
+
+statement_bit_and			= statement_shift
+					| statement_bit_and, "&", shift_expression
+					;
+
+statement_bit_and_no_cast		= statement_shift_no_cast
+					| statement_bit_and, "&", shift_no_cast
+					;
+
+statement_bit_xor			= statement_bit_and
+					| statement_bit_xor, "^", bit_and_expression
+					;
+
+statement_bit_xor_no_cast		= statement_bit_and_no_cast
+					| statement_bit_xor, "^", bit_and_no_cast
+					;
+
+statement_bit_or			= statement_bit_xor
+					| statement_bit_or, "|", bit_xor_expression
+					;
+
+statement_bit_or_no_cast		= statement_bit_xor_no_cast
+					| statement_bit_or, "|", bit_xor_no_cast
+					;
+
+statement_comparison			= statement_bit_or
+					| statement_bit_or, comparison_operator, bit_or_expression
+					| statement_bit_or_no_cast, "<", bit_or_expression
+					;
+
+statement_cast				= statement_unary
+					| statement_cast, "as", type_no_bounds
+					;
+
+statement_unary				= statement_postfix
+					| prefix_operator, unary_expression
+					;
+
+statement_postfix			= statement_primary
+					| block_like_expression, dot_or_try_suffix
+					| statement_postfix, postfix_suffix
+					;
+
+statement_primary			= primary_core
+					| struct_expression
+					;
+
+primary_core				= literal_expression
+					| path_in_expression
+					| qualified_path_in_expression
+					| tuple_expression
+					| array_expression
+					| macro_invocation_no_brace
+					| "_"
+					;
+
+postfix_suffix				= dot_or_try_suffix
+					| call_suffix
+					| "[", expression, "]"
+					;
+
+dot_or_try_suffix			= "?"
+					| ".", "await"
+					| ".", ident
+					| ".", ident, "::", generic_args
+					| ".", INTEGER_LITERAL
+					;
+
+call_suffix				= "(", ")"
+					| "(", expression_list, ")"
+					| "(", expression_list, ",", ")"
+					;
+
+expression_list				= expression
+					| expression_list, ",", expression
+					;
+
+literal_expression			= INTEGER_LITERAL
+					| FLOAT_LITERAL
+					| CHAR_LITERAL
+					| BYTE_LITERAL
+					| STRING_LITERAL
+					| RAW_STRING_LITERAL
+					| BYTE_STRING_LITERAL
+					| RAW_BYTE_STRING_LITERAL
+					| C_STRING_LITERAL
+					| RAW_C_STRING_LITERAL
+					| "true"
+					| "false"
+					;
+
+tuple_expression			= "(", ")"
+					| "(", expression, ")"
+					| "(", expression, ",", ")"
+					| "(", expression, ",", expression_list, ")"
+					| "(", expression, ",", expression_list, ",", ")"
+					;
+
+array_expression			= "[", "]"
+					| "[", expression_list, "]"
+					| "[", expression_list, ",", "]"
+					| "[", expression, ";", expression, "]"
+					;
+
+struct_expression			= path_in_expression, "{", [ struct_expression_body ], "}" ;
+
+struct_expression_body			= struct_base
+					| struct_expression_fields
+					;
+
+struct_expression_fields		= struct_expression_field
+					| struct_expression_field, ","
+					| struct_expression_field, ",", struct_expression_fields
+					| struct_expression_field, ",", struct_base
+					;
+
+struct_expression_field			= ident
+					| ident, ":", expression
+					| INTEGER_LITERAL, ":", expression
+					;
+
+struct_base				= "..", expression ;
+
+closure_expression			= [ closure_modifiers ], closure_parameters, closure_body ;
+
+closure_modifiers			= "move"
+					| "async"
+					| "async", "move"
+					;
+
+closure_parameters			= "||"
+					| "|", "|"
+					| "|", closure_param_list, "|"
+					| "|", closure_param_list, ",", "|"
+					;
+
+closure_param_list			= closure_param
+					| closure_param_list, ",", closure_param
+					;
+
+closure_param				= pattern_no_top_alt
+					| pattern_no_top_alt, ":", type
+					;
+
+closure_body				= expression
+					| "->", type_no_bounds, block_expression
+					;
+
+return_expression			= "return"
+					| "return", expression
+					;
+
+break_expression			= "break"
+					| "break", LIFETIME
+					| "break", LIFETIME, expression
+					| "break", expression
+					;
+
+continue_expression			= "continue"
+					| "continue", LIFETIME
+					;
+
+IDENTIFIER				:= IDENTIFIER_START, { IDENTIFIER_CONTINUE }
+					| "r#", IDENTIFIER_START, { IDENTIFIER_CONTINUE }
+					;
+
+IDENTIFIER_START			:= LETTER | "_" ;
+
+IDENTIFIER_CONTINUE			:= LETTER | DIGIT | "_" ;
+
+LIFETIME				:= "'", IDENTIFIER_START, { IDENTIFIER_CONTINUE } ;
+
+LETTER					:= "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
+					| "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+					| "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+					| "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+					;
+
+DIGIT					:= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+BIN_DIGIT				:= "0" | "1" ;
+
+OCT_DIGIT				:= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" ;
+
+HEX_DIGIT				:= DIGIT
+					| "a" | "b" | "c" | "d" | "e" | "f"
+					| "A" | "B" | "C" | "D" | "E" | "F"
+					;
+
+INTEGER_LITERAL				:= ( DEC_LITERAL | BIN_LITERAL | OCT_LITERAL | HEX_LITERAL ), [ INTEGER_SUFFIX ] ;
+
+DEC_LITERAL				:= DIGIT, { DIGIT | "_" } ;
+
+BIN_LITERAL				:= "0b", { "_" }, BIN_DIGIT, { BIN_DIGIT | "_" } ;
+
+OCT_LITERAL				:= "0o", { "_" }, OCT_DIGIT, { OCT_DIGIT | "_" } ;
+
+HEX_LITERAL				:= "0x", { "_" }, HEX_DIGIT, { HEX_DIGIT | "_" } ;
+
+INTEGER_SUFFIX				:= "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+					| "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+					;
+
+FLOAT_LITERAL				:= DEC_LITERAL, ".", DEC_LITERAL, [ FLOAT_EXPONENT ], [ FLOAT_SUFFIX ]
+					| DEC_LITERAL, FLOAT_EXPONENT, [ FLOAT_SUFFIX ]
+					| DEC_LITERAL, FLOAT_SUFFIX
+					;
+
+FLOAT_EXPONENT				:= ( "e" | "E" ), [ "+" | "-" ], { "_" }, DIGIT, { DIGIT | "_" } ;
+
+FLOAT_SUFFIX				:= "f32" | "f64" ;
+
+CHAR_LITERAL				:= "'", ( SOURCE_CHARACTER | '"' | QUOTE_ESCAPE | ASCII_ESCAPE | UNICODE_ESCAPE ), "'" ;
+
+BYTE_LITERAL				:= "b'", ( SOURCE_CHARACTER | '"' | QUOTE_ESCAPE | BYTE_ESCAPE ), "'" ;
+
+STRING_LITERAL				:= '"', { SOURCE_CHARACTER | "'" | QUOTE_ESCAPE | ASCII_ESCAPE | UNICODE_ESCAPE }, '"' ;
+
+BYTE_STRING_LITERAL			:= 'b"', { SOURCE_CHARACTER | "'" | QUOTE_ESCAPE | BYTE_ESCAPE }, '"' ;
+
+C_STRING_LITERAL			:= 'c"', { SOURCE_CHARACTER | "'" | QUOTE_ESCAPE | BYTE_ESCAPE | UNICODE_ESCAPE }, '"' ;
+
+RAW_STRING_LITERAL			:= "r", RAW_STRING_BODY ;
+
+RAW_BYTE_STRING_LITERAL			:= "br", RAW_STRING_BODY ;
+
+RAW_C_STRING_LITERAL			:= "cr", RAW_STRING_BODY ;
+
+RAW_STRING_BODY				:= '"', { RAW_CHARACTER }, '"'
+					| "#", '"', { RAW_CHARACTER | '"', RAW_CHARACTER_NO_HASH }, '"', "#"
+					;
+
+RAW_CHARACTER				:= SOURCE_CHARACTER | "'" | "\" ;
+
+RAW_CHARACTER_NO_HASH			:= RAW_CHARACTER_NO_HASH_BASE | "'" | "\" ;
+
+QUOTE_ESCAPE				:= "\'" | '\"' ;
+
+ASCII_ESCAPE				:= "\x", OCT_DIGIT, HEX_DIGIT
+					| "\n" | "\r" | "\t" | "\\" | "\0"
+					;
+
+BYTE_ESCAPE				:= "\x", HEX_DIGIT, HEX_DIGIT
+					| "\n" | "\r" | "\t" | "\\" | "\0"
+					;
+
+UNICODE_ESCAPE				:= "\u{", HEX_DIGIT, { HEX_DIGIT | "_" }, "}" ;
+
+SOURCE_CHARACTER			:= RAW_CHARACTER_NO_HASH_BASE | "#" ;
+
+RAW_CHARACTER_NO_HASH_BASE		:= LETTER | DIGIT
+					| "`" | "~" | "!" | "@" | "$" | "%" | "^" | "&" | "*" | "(" | ")" | "_"
+					| "-" | "+" | "=" | "{" | "}" | "[" | "]" | ":" | ";" | "<" | ">" | ","
+					| "." | "?" | "/" | "|" | " "
+					;

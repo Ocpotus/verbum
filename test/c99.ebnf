@@ -1,0 +1,413 @@
+translation_unit			= { external_declaration } ;
+
+external_declaration			= function_definition
+					| declaration
+					;
+
+function_definition			= declaration_specifiers, declarator, [ declaration_list ], compound_statement ;
+
+declaration_list			= declaration, { declaration } ;
+
+declaration				= declaration_specifiers, [ init_declarator_list ], ";" ;
+
+declaration_specifiers			= declaration_specifier, { declaration_specifier } ;
+
+declaration_specifier			= storage_class_specifier
+					| type_specifier
+					| type_qualifier
+					| function_specifier
+					;
+
+init_declarator_list			= init_declarator, { ",", init_declarator } ;
+
+init_declarator				= declarator
+					| declarator, "=", initializer
+					;
+
+storage_class_specifier			= "typedef"
+					| "extern"
+					| "static"
+					| "auto"
+					| "register"
+					;
+
+type_specifier				= "void"
+					| "char"
+					| "short"
+					| "int"
+					| "long"
+					| "float"
+					| "double"
+					| "signed"
+					| "unsigned"
+					| "_Bool"
+					| "_Complex"
+					| "_Imaginary"
+					| struct_or_union_specifier
+					| enum_specifier
+					| TYPEDEF_NAME
+					;
+
+struct_or_union_specifier		= struct_or_union, IDENTIFIER, "{", struct_declaration_list, "}"
+					| struct_or_union, "{", struct_declaration_list, "}"
+					| struct_or_union, IDENTIFIER
+					;
+
+struct_or_union				= "struct"
+					| "union"
+					;
+
+struct_declaration_list			= struct_declaration, { struct_declaration } ;
+
+struct_declaration			= specifier_qualifier_list, struct_declarator_list, ";" ;
+
+specifier_qualifier_list		= specifier_qualifier, { specifier_qualifier } ;
+
+specifier_qualifier			= type_specifier
+					| type_qualifier
+					;
+
+struct_declarator_list			= struct_declarator, { ",", struct_declarator } ;
+
+struct_declarator			= declarator
+					| declarator, ":", constant_expression
+					| ":", constant_expression
+					;
+
+enum_specifier				= "enum", IDENTIFIER, "{", enumerator_list, "}"
+					| "enum", IDENTIFIER, "{", enumerator_list, ",", "}"
+					| "enum", "{", enumerator_list, "}"
+					| "enum", "{", enumerator_list, ",", "}"
+					| "enum", IDENTIFIER
+					;
+
+enumerator_list				= enumerator
+					| enumerator_list, ",", enumerator
+					;
+
+enumerator				= IDENTIFIER
+					| IDENTIFIER, "=", constant_expression
+					;
+
+type_qualifier				= "const"
+					| "restrict"
+					| "volatile"
+					;
+
+function_specifier			= "inline" ;
+
+declarator				= pointer, direct_declarator
+					| direct_declarator
+					;
+
+direct_declarator			= IDENTIFIER
+					| "(", declarator, ")"
+					| direct_declarator, array_suffix
+					| direct_declarator, "(", parameter_type_list, ")"
+					| direct_declarator, "(", [ identifier_list ], ")"
+					;
+
+array_suffix				= "[", "]"
+					| "[", assignment_expression, "]"
+					| "[", type_qualifier_list, "]"
+					| "[", type_qualifier_list, assignment_expression, "]"
+					| "[", "static", assignment_expression, "]"
+					| "[", "static", type_qualifier_list, assignment_expression, "]"
+					| "[", type_qualifier_list, "static", assignment_expression, "]"
+					| "[", "*", "]"
+					| "[", type_qualifier_list, "*", "]"
+					;
+
+pointer					= "*", [ type_qualifier_list ], [ pointer ] ;
+
+type_qualifier_list			= type_qualifier, { type_qualifier } ;
+
+parameter_type_list			= parameter_list
+					| parameter_list, ",", "..."
+					;
+
+parameter_list				= parameter_declaration
+					| parameter_list, ",", parameter_declaration
+					;
+
+parameter_declaration			= declaration_specifiers, declarator
+					| declaration_specifiers, abstract_declarator
+					| declaration_specifiers
+					;
+
+identifier_list				= IDENTIFIER, { ",", IDENTIFIER } ;
+
+type_name				= specifier_qualifier_list, [ abstract_declarator ] ;
+
+abstract_declarator			= pointer
+					| pointer, direct_abstract_declarator
+					| direct_abstract_declarator
+					;
+
+direct_abstract_declarator		= "(", abstract_declarator, ")"
+					| array_suffix
+					| "(", [ parameter_type_list ], ")"
+					| direct_abstract_declarator, array_suffix
+					| direct_abstract_declarator, "(", [ parameter_type_list ], ")"
+					;
+
+initializer				= assignment_expression
+					| "{", initializer_list, "}"
+					| "{", initializer_list, ",", "}"
+					;
+
+initializer_list			= [ designation ], initializer
+					| initializer_list, ",", [ designation ], initializer
+					;
+
+designation				= designator_list, "=" ;
+
+designator_list				= designator, { designator } ;
+
+designator				= "[", constant_expression, "]"
+					| ".", IDENTIFIER
+					;
+
+statement				= labeled_statement
+					| compound_statement
+					| expression_statement
+					| selection_statement
+					| iteration_statement
+					| jump_statement
+					;
+
+labeled_statement			= IDENTIFIER, ":", statement
+					| "case", constant_expression, ":", statement
+					| "default", ":", statement
+					;
+
+selection_statement			= if_statement
+					| "switch", "(", expression, ")", statement
+					;
+
+if_statement				= "if", "(", expression, ")", compound_statement, [ "else", else_clause ] ;
+
+else_clause				= compound_statement
+					| if_statement
+					;
+
+iteration_statement			= "while", "(", expression, ")", statement
+					| "do", statement, "while", "(", expression, ")", ";"
+					| "for", "(", for_clauses, ")", statement
+					;
+
+for_clauses				= [ expression ], ";", [ expression ], ";", [ expression ]
+					| declaration, [ expression ], ";", [ expression ]
+					;
+
+compound_statement			= "{", { block_item }, "}" ;
+
+block_item				= declaration
+					| statement
+					;
+
+expression_statement			= [ expression ], ";" ;
+
+jump_statement				= "goto", IDENTIFIER, ";"
+					| "continue", ";"
+					| "break", ";"
+					| "return", [ expression ], ";"
+					;
+
+expression				= assignment_expression, { ",", assignment_expression } ;
+
+assignment_expression			= conditional_expression
+					| unary_expression, assignment_operator, assignment_expression
+					;
+
+assignment_operator			= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|=" ;
+
+constant_expression			= conditional_expression ;
+
+conditional_expression			= logical_or_expression
+					| logical_or_expression, "?", expression, ":", conditional_expression
+					;
+
+logical_or_expression			= logical_and_expression, { "||", logical_and_expression } ;
+
+logical_and_expression			= inclusive_or_expression, { "&&", inclusive_or_expression } ;
+
+inclusive_or_expression			= exclusive_or_expression, { "|", exclusive_or_expression } ;
+
+exclusive_or_expression			= and_expression, { "^", and_expression } ;
+
+and_expression				= equality_expression, { "&", equality_expression } ;
+
+equality_expression			= relational_expression, { ( "==" | "!=" ), relational_expression } ;
+
+relational_expression			= shift_expression, { ( "<" | ">" | "<=" | ">=" ), shift_expression } ;
+
+shift_expression			= additive_expression, { ( "<<" | ">>" ), additive_expression } ;
+
+additive_expression			= multiplicative_expression, { ( "+" | "-" ), multiplicative_expression } ;
+
+multiplicative_expression		= cast_expression, { ( "*" | "/" | "%" ), cast_expression } ;
+
+cast_expression				= unary_expression
+					| "(", type_name, ")", cast_expression
+					;
+
+unary_expression			= postfix_expression
+					| "++", unary_expression
+					| "--", unary_expression
+					| unary_operator, cast_expression
+					| "sizeof", unary_expression
+					| "sizeof", "(", type_name, ")"
+					;
+
+unary_operator				= "&" | "*" | "+" | "-" | "~" | "!" ;
+
+postfix_expression			= primary_expression
+					| "(", type_name, ")", "{", initializer_list, "}"
+					| "(", type_name, ")", "{", initializer_list, ",", "}"
+					| postfix_expression, "[", expression, "]"
+					| postfix_expression, "(", [ argument_expression_list ], ")"
+					| postfix_expression, ".", IDENTIFIER
+					| postfix_expression, "->", IDENTIFIER
+					| postfix_expression, "++"
+					| postfix_expression, "--"
+					;
+
+argument_expression_list		= assignment_expression, { ",", assignment_expression } ;
+
+primary_expression			= IDENTIFIER
+					| constant
+					| string
+					| "(", expression, ")"
+					;
+
+constant				= INTEGER_CONSTANT
+					| FLOATING_CONSTANT
+					| CHARACTER_CONSTANT
+					;
+
+string					= STRING_LITERAL, { STRING_LITERAL } ;
+
+IDENTIFIER				:= IDENTIFIER_NONDIGIT, { IDENTIFIER_NONDIGIT | DIGIT } ;
+
+TYPEDEF_NAME				:= IDENTIFIER ;
+
+IDENTIFIER_NONDIGIT			:= NONDIGIT
+					| UNIVERSAL_CHARACTER_NAME
+					;
+
+NONDIGIT				:= "_"
+					| "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
+					| "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+					| "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+					| "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+					;
+
+DIGIT					:= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+NONZERO_DIGIT				:= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+OCTAL_DIGIT				:= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" ;
+
+HEXADECIMAL_DIGIT			:= DIGIT
+					| "a" | "b" | "c" | "d" | "e" | "f"
+					| "A" | "B" | "C" | "D" | "E" | "F"
+					;
+
+UNIVERSAL_CHARACTER_NAME		:= "\u", HEX_QUAD
+					| "\U", HEX_QUAD, HEX_QUAD
+					;
+
+HEX_QUAD				:= HEXADECIMAL_DIGIT, HEXADECIMAL_DIGIT, HEXADECIMAL_DIGIT, HEXADECIMAL_DIGIT ;
+
+INTEGER_CONSTANT			:= DECIMAL_CONSTANT, [ INTEGER_SUFFIX ]
+					| OCTAL_CONSTANT, [ INTEGER_SUFFIX ]
+					| HEXADECIMAL_CONSTANT, [ INTEGER_SUFFIX ]
+					;
+
+DECIMAL_CONSTANT			:= NONZERO_DIGIT, { DIGIT } ;
+
+OCTAL_CONSTANT				:= "0", { OCTAL_DIGIT } ;
+
+HEXADECIMAL_CONSTANT			:= HEXADECIMAL_PREFIX, HEXADECIMAL_DIGIT, { HEXADECIMAL_DIGIT } ;
+
+HEXADECIMAL_PREFIX			:= "0x" | "0X" ;
+
+INTEGER_SUFFIX				:= UNSIGNED_SUFFIX, [ LONG_SUFFIX | LONG_LONG_SUFFIX ]
+					| LONG_SUFFIX, [ UNSIGNED_SUFFIX ]
+					| LONG_LONG_SUFFIX, [ UNSIGNED_SUFFIX ]
+					;
+
+UNSIGNED_SUFFIX				:= "u" | "U" ;
+
+LONG_SUFFIX				:= "l" | "L" ;
+
+LONG_LONG_SUFFIX			:= "ll" | "LL" ;
+
+FLOATING_CONSTANT			:= DECIMAL_FLOATING_CONSTANT
+					| HEXADECIMAL_FLOATING_CONSTANT
+					;
+
+DECIMAL_FLOATING_CONSTANT		:= FRACTIONAL_CONSTANT, [ EXPONENT_PART ], [ FLOATING_SUFFIX ]
+					| DIGIT_SEQUENCE, EXPONENT_PART, [ FLOATING_SUFFIX ]
+					;
+
+HEXADECIMAL_FLOATING_CONSTANT		:= HEXADECIMAL_PREFIX, HEXADECIMAL_FRACTIONAL_CONSTANT, BINARY_EXPONENT_PART, [ FLOATING_SUFFIX ]
+					| HEXADECIMAL_PREFIX, HEXADECIMAL_DIGIT_SEQUENCE, BINARY_EXPONENT_PART, [ FLOATING_SUFFIX ]
+					;
+
+FRACTIONAL_CONSTANT			:= [ DIGIT_SEQUENCE ], ".", DIGIT_SEQUENCE
+					| DIGIT_SEQUENCE, "."
+					;
+
+EXPONENT_PART				:= ( "e" | "E" ), [ SIGN ], DIGIT_SEQUENCE ;
+
+SIGN					:= "+" | "-" ;
+
+DIGIT_SEQUENCE				:= DIGIT, { DIGIT } ;
+
+HEXADECIMAL_FRACTIONAL_CONSTANT		:= [ HEXADECIMAL_DIGIT_SEQUENCE ], ".", HEXADECIMAL_DIGIT_SEQUENCE
+					| HEXADECIMAL_DIGIT_SEQUENCE, "."
+					;
+
+BINARY_EXPONENT_PART			:= ( "p" | "P" ), [ SIGN ], DIGIT_SEQUENCE ;
+
+HEXADECIMAL_DIGIT_SEQUENCE		:= HEXADECIMAL_DIGIT, { HEXADECIMAL_DIGIT } ;
+
+FLOATING_SUFFIX				:= "f" | "l" | "F" | "L" ;
+
+CHARACTER_CONSTANT			:= [ "L" ], "'", C_CHAR, { C_CHAR }, "'" ;
+
+C_CHAR					:= SOURCE_CHARACTER
+					| '"'
+					| ESCAPE_SEQUENCE
+					;
+
+STRING_LITERAL				:= [ "L" ], '"', { S_CHAR }, '"' ;
+
+S_CHAR					:= SOURCE_CHARACTER
+					| "'"
+					| ESCAPE_SEQUENCE
+					;
+
+SOURCE_CHARACTER			:= NONDIGIT
+					| DIGIT
+					| PUNCTUATION
+					;
+
+PUNCTUATION				:= "`" | "~" | "!" | "@" | "#" | "$" | "%" | "^" | "&" | "*" | "(" | ")"
+					| "-" | "+" | "=" | "{" | "}" | "[" | "]" | ":" | ";" | "<" | ">" | ","
+					| "." | "?" | "/" | "|" | " "
+					;
+
+ESCAPE_SEQUENCE				:= SIMPLE_ESCAPE_SEQUENCE
+					| OCTAL_ESCAPE_SEQUENCE
+					| HEXADECIMAL_ESCAPE_SEQUENCE
+					| UNIVERSAL_CHARACTER_NAME
+					;
+
+SIMPLE_ESCAPE_SEQUENCE			:= "\", ( "'" | '"' | "?" | "\" | "a" | "b" | "f" | "n" | "r" | "t" | "v" ) ;
+
+OCTAL_ESCAPE_SEQUENCE			:= "\", OCTAL_DIGIT, [ OCTAL_DIGIT, [ OCTAL_DIGIT ] ] ;
+
+HEXADECIMAL_ESCAPE_SEQUENCE		:= "\x", HEXADECIMAL_DIGIT, { HEXADECIMAL_DIGIT } ;

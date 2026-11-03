@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -16,15 +17,63 @@
 #include "generate.h"
 
 
+typedef struct Context {
+	struct {
+		char *buffer;
+		size_t len;
+		FILE *fp;
+	} table_out;
+	struct {
+		char *buffer;
+		size_t len;
+		FILE *fp;
+	} ast_out;
+	struct {
+		char *buffer;
+		size_t len;
+		FILE *fp;
+	} parser_out;
+	FILE *out_file;
+} Context;
+
 static void generate_table(FILE *fp, Grammar grammar, ParseTable table);
 static void generate_ast(FILE *fp, Grammar grammar);
 
 
 void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable table) {
-	static const char *const output_file = "table_output.c";
-	FILE *fp = fopen(output_file, "w+");
 	(void) grammar;
 	(void) raw_rules;
+	Context context = { 0 };
+
+	context.table_out.fp = open_memstream(&context.table_out.buffer, &context.table_out.len);
+	context.ast_out.fp = open_memstream(&context.ast_out.buffer, &context.ast_out.len);
+	context.parser_out.fp = open_memstream(&context.parser_out.buffer, &context.parser_out.len);
+	context.out_file = fopen("verbum.c", "w+");
+
+	if(context.table_out.fp == NULL || context.ast_out.fp == NULL || context.parser_out.fp == NULL) {
+		// Error;
+		return;
+	}
+
+	generate_table(context.table_out.fp, grammar, table);
+	//generate_parser(context.parser_out.fp, grammar, table);
+	generate_ast(context.ast_out.fp, grammar);
+
+	fclose(context.table_out.fp);
+	fclose(context.ast_out.fp);
+	fclose(context.parser_out.fp);
+
+	if((context.table_out.len > fwrite(context.table_out.buffer, 1, context.table_out.len, context.out_file) ||
+	   (context.ast_out.len > fwrite(context.ast_out.buffer, 1, context.ast_out.len, context.out_file)) ||
+	   (context.parser_out.len > fwrite(context.parser_out.buffer, 1, context.parser_out.len, context.out_file)))) {
+		// Error
+	}
+
+	fclose(context.out_file);
+}
+
+static void generate_table(FILE *fp, Grammar grammar, ParseTable table) {
+	(void) grammar;
 
 	fprintf(fp, "#include <stdint.h>\n");
 	fprintf(fp, "#include <stddef.h>\n");
@@ -60,16 +109,6 @@ void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable tab
 	fprintf(fp, "static const uint32_t GotoError = UINT32_MAX;\n");
 	fprintf(fp, "typedef uint32_t ParseTableGoto;\n");
 
-	generate_table(fp, grammar, table);
-	//generate_parser(fp, grammar, table);
-	generate_ast(fp, grammar);
-
-	fclose(fp);
-}
-
-static void generate_table(FILE *fp, Grammar grammar, ParseTable table) {
-	(void) grammar;
-
 	fprintf(fp, "static const ParseTableAction action_table[%zu][%zu] = {\n", (size_t )table.num_states, (size_t) table.num_terminals + 1);
 
 	for(size_t state_index = 0; state_index < table.num_states; state_index += 1) {
@@ -104,6 +143,10 @@ static void print_token_definition(FILE *fp, Grammar g);
 
 static void generate_ast(FILE *fp, Grammar grammar) {
 	print_token_definition(fp, grammar);
+	/* rule_set_iterate(grammar.rules, it1, {
+		
+
+	}); */
 }
 
 static void print_token_definition(FILE *fp, Grammar g) {

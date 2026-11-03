@@ -36,8 +36,10 @@ typedef struct Context {
 	FILE *out_file;
 } Context;
 
-static void generate_table(FILE *fp, Grammar grammar, ParseTable table);
-static void generate_ast(FILE *fp, Grammar grammar);
+static void generate_table(Context ctx, Grammar grammar, ParseTable table);
+static void generate_ast(Context ctx, Grammar grammar);
+static void print_symbol(FILE *fp, Symbol s);
+static void print_node(FILE *fp, Rule r);
 
 
 void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable table) {
@@ -55,9 +57,9 @@ void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable tab
 		return;
 	}
 
-	generate_table(context.table_out.fp, grammar, table);
+	generate_table(context, grammar, table);
 	//generate_parser(context.parser_out.fp, grammar, table);
-	generate_ast(context.ast_out.fp, grammar);
+	generate_ast(context, grammar);
 
 	fclose(context.table_out.fp);
 	fclose(context.ast_out.fp);
@@ -72,8 +74,9 @@ void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable tab
 	fclose(context.out_file);
 }
 
-static void generate_table(FILE *fp, Grammar grammar, ParseTable table) {
+static void generate_table(Context ctx, Grammar grammar, ParseTable table) {
 	(void) grammar;
+	FILE *fp = ctx.table_out.fp;
 
 	fprintf(fp, "#include <stdint.h>\n");
 	fprintf(fp, "#include <stddef.h>\n");
@@ -138,28 +141,17 @@ static void generate_table(FILE *fp, Grammar grammar, ParseTable table) {
 	fprintf(fp, "};\n");
 }
 
-static void print_symbol(FILE *fp, Symbol s);
-static void print_token_definition(FILE *fp, Grammar g);
+static void generate_ast(Context ctx, Grammar grammar) {
+	FILE *fp = ctx.ast_out.fp;
 
-static void generate_ast(FILE *fp, Grammar grammar) {
-	print_token_definition(fp, grammar);
-	/* rule_set_iterate(grammar.rules, it1, {
-		
-
-	}); */
-}
-
-static void print_token_definition(FILE *fp, Grammar g) {
-	// Types
 	fprintf(fp, "typedef enum TokenType {\n");
 
-	rule_set_iterate(g.rules, it1, {
-		// Only named lexical rules a syntax rule references are tokens
-		if(it1->mask & RuleMask_Token) {
-			fprintf(fp, "\tTokenType_");
-			print_symbol(fp, it1->identifier);
-			fprintf(fp, ",\n");
-		}
+	symbol_set_iterate(grammar.terminals, it1, {
+		bool found; // Not used
+
+		fprintf(fp, "\tTokenType_%zu, // ", symbol_set_index(grammar.terminals, *it1, &found));
+		print_symbol(fp, *it1);
+		fprintf(fp, "\n");
 	});
 
 	fprintf(fp, "} TokenType;\n");
@@ -179,8 +171,13 @@ static void print_token_definition(FILE *fp, Grammar g) {
 	fprintf(fp, "\t\tsize_t column;\n");
 	fprintf(fp, "\t} position;\n");
 	fprintf(fp, "} Token;\n");
-}
 
+	symbol_set_iterate(grammar.nonterminals, it1, {
+		if(!(it1->mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group))) {
+			print_node(fp, rule_set_get(grammar.rules, *it1));
+		}
+	});
+}
 
 static void print_symbol(FILE *fp, Symbol s) {
 	if(s.mask & (SymbolMask_Repetition | SymbolMask_Optional | SymbolMask_Group)) {
@@ -188,4 +185,57 @@ static void print_symbol(FILE *fp, Symbol s) {
 	} else {
 		fprintf(fp, "%.*s", (int) s.lexeme.length, s.lexeme.data);
 	}
+}
+
+static void print_node(FILE *fp, Rule r) {
+	bool alternates = cvector_size(r.definitions) > 1;
+	size_t num_tokens = 0;
+
+	fprintf(fp, "typedef struct ");
+	print_symbol(fp, r.identifier);
+	fprintf(fp, " {\n");
+
+	if(alternates) {
+		fprintf(fp, "\tsize_t tag;\n");
+		fprintf(fp, "\tunion {\n");
+	}
+
+	for(size_t i = 0; i < cvector_size(r.definitions); i += 1) {
+		if(alternates) {
+			fprintf(fp, "struct {\n");
+		}
+
+		for(Symbol *it1 = cvector_begin(r.definitions[i]); it1 != cvector_end(r.definitions[i]); it1 += 1) {
+			if(it1->mask & SymbolMask_Repetition) {
+
+			} else if(it1->mask & SymbolMask_Optional) {
+				
+			} else if(it1->mask & SymbolMask_Group) {
+			} else if(it1->mask & SymbolMask_Terminal) {
+				fprintf(fp, "Token _t%zu; // ", num_tokens);
+				num_tokens += 1;
+				print_symbol(fp, *it1);
+				fprintf(fp, "\n");
+			} else {
+				fprintf(fp, "struct ");
+				print_symbol(fp, *it1);
+				fprintf(fp, "* ");
+				print_symbol(fp, *it1);
+				fprintf(fp, ";\n");
+			}
+		}
+
+		if(alternates) {
+			fprintf(fp, "} _c%zu;\n", i);
+		}
+	}
+
+	if(alternates) {
+		fprintf(fp, "\t};\n");
+	}
+
+	fprintf(fp, "} ");
+	print_symbol(fp, r.identifier);
+	fprintf(fp, ";\n");
+
 }

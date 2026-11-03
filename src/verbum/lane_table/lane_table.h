@@ -7,7 +7,6 @@
 
 #include "../../lib/c-vector/cvector.h"
 
-#include "../symbol/symbol.h"
 #include "../grammar/grammar.h"
 #include "../lr0/lr0.h"
 #include "../lr1/lr1.h"

@@ -5,7 +5,6 @@
 #include "../symbol/symbol.h"
 #include "../definition/definition.h"
 #include "../rule/rule.h"
-#include "../rule_set/rule_set.h"
 #include "../grammar/grammar.h"
 
 #include "bnf.h"

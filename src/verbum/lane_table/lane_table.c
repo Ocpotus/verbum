@@ -10,7 +10,7 @@
 #include "../memory/memory.h"
 #include "../symbol/symbol.h"
 #include "../definition/definition.h"
-#include "../rule_set/rule_set.h"
+#include "../rule/rule.h"
 #include "../grammar/grammar.h"
 #include "../lr0/lr0.h"
 #include "../lr1/lr1.h"

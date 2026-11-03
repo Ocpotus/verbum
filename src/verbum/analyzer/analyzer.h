@@ -4,7 +4,7 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../grammar/grammar.h"
-#include "../raw_rule/raw_rule.h"
+#include "../rule/rule.h"
 
 
 /* Constructs a grammar from a vector of raw rules

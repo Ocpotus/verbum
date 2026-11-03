@@ -10,7 +10,6 @@
 #include "../table/table.h"
 #include "../grammar/grammar.h"
 //#include "../ast/ast.h"
-#include "../rule_set/rule_set.h"
 #include "../rule/rule.h"
 #include "../symbol/symbol.h"
 

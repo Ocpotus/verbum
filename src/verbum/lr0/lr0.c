@@ -6,7 +6,6 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../rule/rule.h"
-#include "../rule_set/rule_set.h"
 #include "../grammar/grammar.h"
 #include "../symbol/symbol.h"
 

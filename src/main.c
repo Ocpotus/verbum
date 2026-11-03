@@ -14,8 +14,8 @@
 #include "verbum/lr1/lr1.h"
 #include "verbum/lane_table/lane_table.h"
 #include "verbum/parse/parse.h"
-#include "verbum/raw_rule/raw_rule.h"
 #include "verbum/table/table.h"
+#include "verbum/rule/rule.h"
 #include "verbum/generate/generate.h"
 
 

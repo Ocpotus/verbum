@@ -4,7 +4,7 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../token/token.h"
-#include "../raw_rule/raw_rule.h"
+#include "../rule/rule.h"
 
 
 typedef struct AstGrammar AstGrammar;

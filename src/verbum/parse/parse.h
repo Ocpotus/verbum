@@ -4,7 +4,7 @@
 #include "../../lib/c-vector/cvector.h"
 
 #include "../lexer/lexer.h"
-#include "../raw_rule/raw_rule.h"
+#include "../rule/rule.h"
 
 
 cvector(RawRule) verbum_parse(Lexer *l);

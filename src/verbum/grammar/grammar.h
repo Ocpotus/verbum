@@ -2,7 +2,7 @@
 #define VERBUM_GRAMMAR_H
 
 #include "../symbol/symbol.h"
-#include "../rule_set/rule_set.h"
+#include "../rule/rule.h"
 
 
 /* Grammar

@@ -1,7 +1,7 @@
 #include <stdbool.h>
 
 #include "../symbol/symbol.h"
-#include "../rule_set/rule_set.h"
+#include "../rule/rule.h"
 
 #include "grammar.h"
 

@@ -2,7 +2,7 @@
 
 #include "../lexer/lexer.h"
 #include "../token/token.h"
-#include "../raw_rule/raw_rule.h"
+#include "../rule/rule.h"
 
 #include "parse.h"
 

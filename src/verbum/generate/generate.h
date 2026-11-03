@@ -5,7 +5,7 @@
 
 #include "../table/table.h"
 #include "../grammar/grammar.h"
-#include "../raw_rule/raw_rule.h"
+#include "../rule/rule.h"
 
 
 void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable table);

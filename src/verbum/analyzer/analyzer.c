@@ -11,8 +11,6 @@
 #include "../definition/definition.h"
 #include "../grammar/grammar.h"
 #include "../rule/rule.h"
-#include "../rule_set/rule_set.h"
-#include "../raw_rule/raw_rule.h"
 
 #include "../../lib/log.c/log.h"
 

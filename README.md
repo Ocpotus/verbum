@@ -2,7 +2,7 @@
 An EBNF-to-C parser generator.
 
 ## About
-Verbum is an LR(1) parser generator aimed for rapid programming language development. It offers an easy to use interface for code generation and language interoperability.
+Verbum is an LR(1) parser generator aimed for iterative programming language development. It offers an easy to use interface for code generation and language interoperability.
 It is not a parser generator for a particular language, rather it aims to be one for any programming language that allows interfacing with the C ABI.
 
 ## Getting Started

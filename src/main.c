@@ -7,7 +7,6 @@
 #include "lib/c-vector/cvector.h"
 #include "lib/optparse99/optparse99.h"
 
-#include "verbum/ast/ast.h"
 #include "verbum/lexer/lexer.h"
 #include "verbum/analyzer/analyzer.h"
 #include "verbum/lr0/lr0.h"
@@ -83,10 +82,13 @@ void verbum(int argc, char **argv) {
 	cvector(size_t) conflicts = NULL;
 	LR1Automaton lane_table = lane_table_new(grammar, lr0, &conflicts);
 	ParseTable table = parse_table_new(grammar, lane_table);
-	AST *ast = ast_new_from_raw_rules(rules);
 
 	log_info("Generated table size for %s: %zu bytes", basename(argv[1]),
 			((size_t) (table.num_nonterminals + table.num_states)) * ((size_t) table.num_states) * ((size_t) sizeof(*table.action_table)));
+
+	for(size_t *it1 = cvector_begin(conflicts); it1 != cvector_end(conflicts); it1 += 1) {
+		log_info("Conflict for %zu", *it1);
+	}
 
 	verbum_generate(rules, grammar, table);
 
@@ -94,7 +96,6 @@ void verbum(int argc, char **argv) {
 		raw_rule_delete(it1);
 	}
 
-	ast_delete(ast);
 	parse_table_delete(&table);
 	cvector_free(conflicts);
 	lr1_delete(lane_table);

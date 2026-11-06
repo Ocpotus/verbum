@@ -19,7 +19,6 @@ static bool parse_table_set_action(ParseTable *t, size_t state, size_t column, P
 static bool parse_table_productions(ParseTable *t, Grammar *g, size_t *base);
 static bool parse_table_reduce(ParseTable *t, Grammar *g, LR1Automaton *lr1, size_t *base, size_t state, LR1Item *item, bool wildcard);
 
-//
 // (row * width) + col
 ParseTable parse_table_new(Grammar grammar, LR1Automaton lr1) {
 	//ParseTable table = parse_table_new(cvector_size(lane_table.states), cvector_size(lane_table.terminals), symbol_set_size(grammar.nonterminals));

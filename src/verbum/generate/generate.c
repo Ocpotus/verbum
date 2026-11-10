@@ -14,6 +14,7 @@
 //#include "../ast/ast.h"
 #include "../rule/rule.h"
 #include "../symbol/symbol.h"
+#include "../definition/definition.h"
 
 #include "generate.h"
 
@@ -152,19 +153,6 @@ static void generate_table(Context ctx, Grammar grammar, ParseTable table) {
 }
 
 static void generate_ast(Context context, Grammar grammar) {
-	fprintf(context.ast_out.fp, "typedef enum ASTType {\n");
-
-	rule_set_iterate(grammar.rules, it1, {
-		if(!symbol_is_hoisted(it1->identifier) && !(it1->mask & RuleMask_Lexical) && !symbol_equals(it1->identifier, grammar.start->identifier)) {
-			fprintf(context.ast_out.fp, "\tASTType_");
-			print_symbol(context.ast_out.fp, it1->identifier);
-			fprintf(context.ast_out.fp, ",\n");
-		}
-	});
-
-	fprintf(context.ast_out.fp, "\tASTType_Token,\n");
-	fprintf(context.ast_out.fp, "} ASTType;\n");
-
 	fprintf(context.ast_out.fp, "typedef enum TokenType {\n");
 
 	rule_set_iterate(grammar.rules, it1, {
@@ -190,11 +178,88 @@ static void generate_ast(Context context, Grammar grammar) {
 	fprintf(context.ast_out.fp, "\t} pos;\n");
 	fprintf(context.ast_out.fp, "} Token;\n");
 
+	fprintf(context.ast_out.fp, "typedef enum ASTType {\n");
+
+	rule_set_iterate(grammar.rules, it1, {
+		if(!symbol_is_hoisted(it1->identifier) && !(it1->mask & RuleMask_Lexical) && !symbol_equals(it1->identifier, grammar.start->identifier)) {
+			fprintf(context.ast_out.fp, "\tASTType_");
+			print_symbol(context.ast_out.fp, it1->identifier);
+			fprintf(context.ast_out.fp, ",\n");
+		}
+	});
+
+	fprintf(context.ast_out.fp, "\tASTType_Token,\n");
+	fprintf(context.ast_out.fp, "} ASTType;\n");
+
+	fprintf(context.ast_out.fp, "typedef uint32_t TokenIndex;\n");
+	fprintf(context.ast_out.fp, "typedef uint32_t ASTIndex;\n");
+
 	fprintf(context.ast_out.fp, "typedef struct ASTNode {\n");
+	fprintf(context.ast_out.fp, "\tunion {\n");
+
+	rule_set_iterate(grammar.rules, it1, {
+		bool alternates = false;
+		size_t alternates_count = 0;
+
+		if(cvector_size(it1->definitions) > 1) {
+			alternates = true;
+		}
+		
+		if(!(it1->mask & RuleMask_Lexical) && !symbol_equals(it1->identifier, grammar.start->identifier)) {
+			fprintf(context.ast_out.fp, "\t\t%s {\n", alternates ? "union" : "struct");
+
+			for(Definition *it2 = cvector_begin(it1->definitions); it2 != cvector_end(it1->definitions); it2 += 1) {
+				size_t expression = 0;
+
+				if(alternates) {
+					fprintf(context.ast_out.fp, "\t\t\tstruct {\n");
+				}
+
+				for(Symbol *it3 = cvector_begin(*it2); it3 != cvector_end(*it2); it3 += 1) {
+					if(alternates) {
+						fprintf(context.ast_out.fp, "\t");
+					}
+
+					fprintf(context.ast_out.fp, "\t\t\t");
+
+					if(it3->mask & SymbolMask_Terminal) {
+						fprintf(context.ast_out.fp, "TokenIndex _%zu;", expression);
+					} else {
+						fprintf(context.ast_out.fp, "ASTIndex _%zu;", expression);
+					}
+
+					fprintf(context.ast_out.fp, " /* ");
+					print_symbol(context.ast_out.fp, *it3);
+					fprintf(context.ast_out.fp, " */\n");
+					expression += 1;
+				}
+
+				fprintf(context.ast_out.fp, "\t\t");
+
+				if(alternates) {
+					fprintf(context.ast_out.fp, "\t");
+					fprintf(context.ast_out.fp, "} _c%zu;\n", alternates_count);
+					alternates_count += 1;
+				}
+			}
+
+			if(alternates) {
+				fprintf(context.ast_out.fp, "\t\t");
+			}
+
+			fprintf(context.ast_out.fp, "} ");
+			print_symbol(context.ast_out.fp, it1->identifier);
+			fprintf(context.ast_out.fp, ";\n");
+		}
+	});
+
+	fprintf(context.ast_out.fp, "\t\tToken token;\n");
+	fprintf(context.ast_out.fp, "\t};\n");
 	fprintf(context.ast_out.fp, "\tASTType tag;\n");
 	fprintf(context.ast_out.fp, "} ASTNode;\n");
 
 	fprintf(context.ast_out.fp, "typedef struct AST {\n");
+	fprintf(context.ast_out.fp, "\tchar *scratch;\n");
 	fprintf(context.ast_out.fp, "\tToken* tokens;\n");
 	fprintf(context.ast_out.fp, "\tASTNode* nodes;\n");
 	fprintf(context.ast_out.fp, "} AST;\n");

@@ -275,7 +275,7 @@ static const char lexer_declarations[] =
  *
  * Emitted after the lexer tables, a maximal munch driver over them
  */
-static const char lexer_driver[] =
+static const char * const lexer_driver =
 	"/* lexer_codepoint\n"
 	" *\n"
 	" * utf8codepoint at a byte offset, a sequence cut off by the end of the text is not read and\n"
@@ -511,18 +511,24 @@ static void generate_ast(Context context, Grammar grammar) {
 		}
 		
 		if(!(it1->mask & RuleMask_Lexical) && !symbol_equals(it1->identifier, grammar.start->identifier)) {
-			fprintf(context.ast_out.fp, "\t\t%s {\n", alternates ? "union" : "struct");
+			fprintf(context.ast_out.fp, "\t\tstruct {\n");
+
+			if(alternates) {
+				fprintf(context.ast_out.fp, "\t\t\tsize_t tag;\n");
+				fprintf(context.ast_out.fp, "\t\t\tunion {\n");
+			}
+
 
 			for(Definition *it2 = cvector_begin(it1->definitions); it2 != cvector_end(it1->definitions); it2 += 1) {
 				size_t expression = 0;
 
 				if(alternates) {
-					fprintf(context.ast_out.fp, "\t\t\tstruct {\n");
+					fprintf(context.ast_out.fp, "\t\t\t\tstruct {\n");
 				}
 
 				for(Symbol *it3 = cvector_begin(*it2); it3 != cvector_end(*it2); it3 += 1) {
 					if(alternates) {
-						fprintf(context.ast_out.fp, "\t");
+						fprintf(context.ast_out.fp, "\t\t");
 					}
 
 					fprintf(context.ast_out.fp, "\t\t\t");
@@ -542,13 +548,14 @@ static void generate_ast(Context context, Grammar grammar) {
 				fprintf(context.ast_out.fp, "\t\t");
 
 				if(alternates) {
-					fprintf(context.ast_out.fp, "\t");
+					fprintf(context.ast_out.fp, "\t\t");
 					fprintf(context.ast_out.fp, "} _c%zu;\n", alternates_count);
 					alternates_count += 1;
 				}
 			}
 
 			if(alternates) {
+				fprintf(context.ast_out.fp, "\t\t\t};\n");
 				fprintf(context.ast_out.fp, "\t\t");
 			}
 

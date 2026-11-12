@@ -26,6 +26,13 @@ static const utf8_int32_t NFAEpsilon = -1;
 
 /* NFAEdge
  *
+ * Represents an edge in an NFA.
+ *
+ * (source)-[codepoint]->(destination)
+ *
+ * NOTE:
+ * 	source is implicit, as it is only used in the context of an NFAState
+ *
  * MEMBERS:
  * 	destination: index of the state the edge leads to
  * 	codepoint: codepoint consumed to take the edge, NFAEpsilon if none
@@ -36,6 +43,12 @@ typedef struct NFAEdge {
 } NFAEdge;
 
 /* NFAState
+ *
+ * Represents a state in an NFA.
+ *
+ *		 /--[codepoint]->(destination)
+ *		/
+ * (source)-----[codepoint]->(destination)
  *
  * MEMBERS:
  * 	edges: outgoing edges
@@ -116,12 +129,15 @@ static bool nfa_build(Grammar g, NFA *out);
 static void nfa_delete(NFA *nfa);
 static void nfa_print(FILE *fp, NFA nfa) __attribute__((unused));
 static void nfa_closure(DFABuilder *b, cvector(uint32_t) *set);
+
 static uint32_t dfa_state(DFABuilder *b, cvector(uint32_t) set);
 static uint32_t dfa_resolve_accept(DFABuilder *b, const uint32_t *set, size_t length);
 static void dfa_minimise(DFA *dfa);
 static uint32_t dfa_partition(cvector(uint32_t) *signatures, size_t count, uint32_t *out);
 static uint32_t dfa_destination(DFAState state, utf8_int32_t codepoint);
+
 static int codepoint_compare(const void *a, const void *b);
+
 static uint64_t dfa_set_hash(const void *item, uint64_t seed0, uint64_t seed1);
 static int dfa_set_compare(const void *a, const void *b, void *udata);
 static int nfa_move_compare(const void *a, const void *b);
@@ -129,6 +145,7 @@ static int uint32_compare(const void *a, const void *b);
 static void print_codepoint(FILE *fp, utf8_int32_t codepoint);
 static uint32_t nfa_state(NFA *nfa);
 static void nfa_edge(NFA *nfa, uint32_t source, uint32_t destination, utf8_int32_t codepoint);
+
 static NFAFragment nfa_fragment_epsilon(NFA *nfa);
 static NFAFragment nfa_fragment_literal(NFA *nfa, Lexeme l);
 static NFAFragment nfa_fragment_concatenation(NFA *nfa, NFAFragment a, NFAFragment b);
@@ -136,6 +153,7 @@ static NFAFragment nfa_fragment_star(NFA *nfa, NFAFragment a);
 static NFAFragment build_symbol(NFA *nfa, Grammar g, Symbol symbol, cvector(Symbol) *stack, bool *ok);
 static NFAFragment build_definition(NFA *nfa, Grammar g, Symbol *symbols, size_t count, cvector(Symbol) *stack, bool *ok);
 static NFAFragment build_rule(NFA *nfa, Grammar g, Symbol identifier, cvector(Symbol) *stack, bool *ok);
+
 static bool symbol_is_literal(Symbol s);
 
 bool dfa_build(Grammar g, DFA *out) {

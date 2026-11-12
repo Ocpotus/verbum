@@ -10,6 +10,7 @@
 
 #include "../grammar/grammar.h"
 
+
 /* NonAccepting
  *
  * Accept value of a state that does not end a token

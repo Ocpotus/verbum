@@ -11,7 +11,6 @@
 
 #include "../table/table.h"
 #include "../grammar/grammar.h"
-//#include "../ast/ast.h"
 #include "../rule/rule.h"
 #include "../symbol/symbol.h"
 #include "../definition/definition.h"
@@ -55,7 +54,7 @@ static void print_symbols(Context ctx, Grammar g);
 static void generate_token_types(FILE *fp, Grammar g);
 static void generate_ast(Context context, Grammar grammar);
 static void generate_lexer(Context context, DFATable table);
-//static void generate_parser(Context ctx, Grammar g, ParseTable table);
+static void generate_parser(Context context, Grammar grammar, ParseTable table);
 
 void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable table) {
 	(void) grammar;
@@ -92,7 +91,7 @@ void verbum_generate(cvector(RawRule) raw_rules, Grammar grammar, ParseTable tab
 	}
 
 	dfa_delete(&dfa);
-	//generate_parser(context.parser_out.fp, grammar, table);
+	generate_parser(context, grammar, table);
 
 	fclose(context.table_out.fp);
 	fclose(context.symbol_out.fp);
@@ -122,7 +121,10 @@ static void generate_table(Context ctx, Grammar grammar, ParseTable table) {
 
 	fprintf(fp, "#include <stdint.h>\n");
 	fprintf(fp, "#include <stddef.h>\n");
+	fprintf(fp, "#include <stdbool.h>\n");
+	fprintf(fp, "#include <stdio.h>\n");
 	fprintf(fp, "#include \"utf8.h\"\n");
+	fprintf(fp, "#include \"cvector.h\"\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "/*\n");
 	fprintf(fp, " * C99 standard guarantees sizeof enum is >= sizeof int\n");
@@ -154,8 +156,11 @@ static void generate_table(Context ctx, Grammar grammar, ParseTable table) {
 	fprintf(fp, " */\n");
 	fprintf(fp, "static const uint32_t GotoError = UINT32_MAX;\n");
 	fprintf(fp, "typedef uint32_t ParseTableGoto;\n");
+	fprintf(fp, "#define ACTION_TABLE_COLUMNS %zu\n", (size_t) table.num_terminals + 1);
+	fprintf(fp, "#define GOTO_TABLE_COLUMNS %zu\n", (size_t) table.num_nonterminals);
+	fprintf(fp, "#define NUM_PRODUCTIONS %zu\n", (size_t) table.num_productions);
 
-	fprintf(fp, "static const ParseTableAction action_table[%zu * %zu] = {\n", (size_t )table.num_states, (size_t) table.num_terminals + 1);
+	fprintf(fp, "static const ParseTableAction action_table[%zu * ACTION_TABLE_COLUMNS] = {\n", (size_t) table.num_states);
 
 	for(size_t state_index = 0; state_index < table.num_states; state_index += 1) {
 		// One past the last terminal is the end of input
@@ -169,7 +174,7 @@ static void generate_table(Context ctx, Grammar grammar, ParseTable table) {
 	}
 
 	fprintf(fp, "};\n");
-	fprintf(fp, "static const ParseTableGoto goto_table[%zu * %zu] = {\n", (size_t )table.num_states, (size_t) table.num_nonterminals);
+	fprintf(fp, "static const ParseTableGoto goto_table[%zu * GOTO_TABLE_COLUMNS] = {\n", (size_t) table.num_states);
 
 	for(size_t state_index = 0; state_index < table.num_states; state_index += 1) {
 		for(size_t nonterminal_index = 0; nonterminal_index < table.num_nonterminals; nonterminal_index += 1) {
@@ -179,6 +184,32 @@ static void generate_table(Context ctx, Grammar grammar, ParseTable table) {
 		}
 
 		fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "};\n");
+
+	// C has no empty arrays, a grammar without productions gets one unused entry
+	size_t num_entries = table.num_productions > 0 ? table.num_productions : 1;
+
+	fprintf(fp, "/* pop_count\n");
+	fprintf(fp, " *\n");
+	fprintf(fp, " * Symbols on the right hand side of each production, the entries a reduce pops off both stacks\n");
+	fprintf(fp, " */\n");
+	fprintf(fp, "static const uint32_t pop_count[%zu] = {\n", num_entries);
+
+	for(size_t i = 0; i < num_entries; i += 1) {
+		fprintf(fp, "\t%zu,\n", table.num_productions > 0 ? table.productions[i].length : (size_t) 0);
+	}
+
+	fprintf(fp, "};\n");
+	fprintf(fp, "/* production_lhs\n");
+	fprintf(fp, " *\n");
+	fprintf(fp, " * Nonterminal each production reduces to, its goto table column\n");
+	fprintf(fp, " */\n");
+	fprintf(fp, "static const uint32_t production_lhs[%zu] = {\n", num_entries);
+
+	for(size_t i = 0; i < num_entries; i += 1) {
+		fprintf(fp, "\t%zu,\n", table.num_productions > 0 ? table.productions[i].lhs : (size_t) 0);
 	}
 
 	fprintf(fp, "};\n");
@@ -276,140 +307,140 @@ static const char lexer_declarations[] =
  * Emitted after the lexer tables, a maximal munch driver over them
  */
 static const char * const lexer_driver =
-	"/* lexer_codepoint\n"
-	" *\n"
-	" * utf8codepoint at a byte offset, a sequence cut off by the end of the text is not read and\n"
-	" * yields -1, which is class 0\n"
-	" */\n"
-	"static utf8_int32_t lexer_codepoint(const Lexer *l, size_t offset, size_t *size) {\n"
-	"\tutf8_int32_t codepoint = -1;\n"
-	"\n"
-	"\t*size = utf8codepointcalcsize(l->source + offset);\n"
-	"\n"
-	"\tif(*size <= l->length - offset) {\n"
-	"\t\tutf8codepoint(l->source + offset, &codepoint);\n"
-	"\t} else {\n"
-	"\t\t*size = 1;\n"
-	"\t}\n"
-	"\n"
-	"\treturn codepoint;\n"
-	"}\n"
-	"/* lexer_class\n"
-	" *\n"
-	" * Binary search of lexer_ranges for the column of a codepoint\n"
-	" */\n"
-	"static uint32_t lexer_class(utf8_int32_t codepoint) {\n"
-	"\tsize_t low = 0;\n"
-	"\tsize_t high = LEXER_NUM_RANGES;\n"
-	"\n"
-	"\twhile(low < high) {\n"
-	"\t\tsize_t middle = low + (high - low) / 2;\n"
-	"\n"
-	"\t\tif(codepoint < lexer_ranges[middle].first) {\n"
-	"\t\t\thigh = middle;\n"
-	"\t\t} else if(codepoint > lexer_ranges[middle].last) {\n"
-	"\t\t\tlow = middle + 1;\n"
-	"\t\t} else {\n"
-	"\t\t\treturn lexer_ranges[middle].class_index;\n"
-	"\t\t}\n"
-	"\t}\n"
-	"\n"
-	"\treturn 0;\n"
-	"}\n"
-	"/* lexer_consume\n"
-	" *\n"
-	" * Moves a Lexer to a byte offset, keeping its row and column up to date\n"
-	" */\n"
-	"static void lexer_consume(Lexer *l, size_t end) {\n"
-	"\tfor(; l->offset < end; l->offset += 1) {\n"
-	"\t\tunsigned char c = (unsigned char) l->source[l->offset];\n"
-	"\n"
-	"\t\tif(c == '\\n') {\n"
-	"\t\t\tl->row += 1;\n"
-	"\t\t\tl->col = 1;\n"
-	"\t\t} else if((c & 0xC0) != 0x80) {\n"
-	"\t\t\tl->col += 1;\n"
-	"\t\t}\n"
-	"\t}\n"
-	"}\n"
-	"/* lexer_new\n"
-	" *\n"
-	" * Creates a Lexer over text, the text must outlive the Lexer and its tokens\n"
-	" */\n"
-	"Lexer lexer_new(const char *source, size_t length) {\n"
-	"\treturn (Lexer) {\n"
-	"\t\t.source = source,\n"
-	"\t\t.length = length,\n"
-	"\t\t.offset = 0,\n"
-	"\t\t.row = 1,\n"
-	"\t\t.col = 1,\n"
-	"\t};\n"
-	"}\n"
-	"/* lexer_next\n"
-	" *\n"
-	" * Skips whitespace then returns the longest token at the Lexer's position. Text that starts no\n"
-	" * token is returned one codepoint at a time as TokenType_Invalid. At the end it returns TokenType_EOF.\n"
-	" */\n"
-	"Token lexer_next(Lexer *l) {\n"
-	"\tconst unsigned char *source = (const unsigned char *) l->source;\n"
-	"\n"
-	"\twhile(l->offset < l->length && (source[l->offset] == ' ' || (source[l->offset] >= '\\t' && source[l->offset] <= '\\r'))) {\n"
-	"\t\tlexer_consume(l, l->offset + 1);\n"
-	"\t}\n"
-	"\n"
-	"\tToken result = {\n"
-	"\t\t.lexeme = {\n"
-	"\t\t\t.data = l->source + l->offset,\n"
-	"\t\t\t.length = 0,\n"
-	"\t\t},\n"
-	"\t\t.tag = TokenType_EOF,\n"
-	"\t\t.pos = {\n"
-	"\t\t\t.row = l->row,\n"
-	"\t\t\t.col = l->col,\n"
-	"\t\t},\n"
-	"\t};\n"
-	"\n"
-	"\tif(l->offset >= l->length) {\n"
-	"\t\treturn result;\n"
-	"\t}\n"
-	"\n"
-	"\tuint32_t state = LEXER_START;\n"
-	"\tuint32_t tag = LEXER_NONE;\n"
-	"\tsize_t end = l->offset;\n"
-	"\n"
-	"\t// Run until the DFA dies, remembering the last accepting position\n"
-	"\tfor(size_t i = l->offset; i < l->length;) {\n"
-	"\t\tsize_t size;\n"
-	"\t\tutf8_int32_t codepoint = lexer_codepoint(l, i, &size);\n"
-	"\n"
-	"\t\tstate = lexer_transitions[state * LEXER_NUM_CLASSES + lexer_class(codepoint)];\n"
-	"\n"
-	"\t\tif(state == LEXER_DEAD) {\n"
-	"\t\t\tbreak;\n"
-	"\t\t}\n"
-	"\n"
-	"\t\ti += size;\n"
-	"\n"
-	"\t\tif(lexer_accept[state] != LEXER_NONE) {\n"
-	"\t\t\ttag = lexer_accept[state];\n"
-	"\t\t\tend = i;\n"
-	"\t\t}\n"
-	"\t}\n"
-	"\n"
-	"\tif(tag == LEXER_NONE) {\n"
-	"\t\tsize_t size;\n"
-	"\n"
-	"\t\tlexer_codepoint(l, l->offset, &size);\n"
-	"\t\tend = l->offset + size;\n"
-	"\t\ttag = TokenType_Invalid;\n"
-	"\t}\n"
-	"\n"
-	"\tresult.lexeme.length = end - l->offset;\n"
-	"\tresult.tag = (TokenType) tag;\n"
-	"\tlexer_consume(l, end);\n"
-	"\n"
-	"\treturn result;\n"
-	"}\n";
+"/* lexer_codepoint\n"
+" *\n"
+" * utf8codepoint at a byte offset, a sequence cut off by the end of the text is not read and\n"
+" * yields -1, which is class 0\n"
+" */\n"
+"static utf8_int32_t lexer_codepoint(const Lexer *l, size_t offset, size_t *size) {\n"
+"\tutf8_int32_t codepoint = -1;\n"
+"\n"
+"\t*size = utf8codepointcalcsize(l->source + offset);\n"
+"\n"
+"\tif(*size <= l->length - offset) {\n"
+"\t\tutf8codepoint(l->source + offset, &codepoint);\n"
+"\t} else {\n"
+"\t\t*size = 1;\n"
+"\t}\n"
+"\n"
+"\treturn codepoint;\n"
+"}\n"
+"/* lexer_class\n"
+" *\n"
+" * Binary search of lexer_ranges for the column of a codepoint\n"
+" */\n"
+"static uint32_t lexer_class(utf8_int32_t codepoint) {\n"
+"\tsize_t low = 0;\n"
+"\tsize_t high = LEXER_NUM_RANGES;\n"
+"\n"
+"\twhile(low < high) {\n"
+"\t\tsize_t middle = low + (high - low) / 2;\n"
+"\n"
+"\t\tif(codepoint < lexer_ranges[middle].first) {\n"
+"\t\t\thigh = middle;\n"
+"\t\t} else if(codepoint > lexer_ranges[middle].last) {\n"
+"\t\t\tlow = middle + 1;\n"
+"\t\t} else {\n"
+"\t\t\treturn lexer_ranges[middle].class_index;\n"
+"\t\t}\n"
+"\t}\n"
+"\n"
+"\treturn 0;\n"
+"}\n"
+"/* lexer_consume\n"
+" *\n"
+" * Moves a Lexer to a byte offset, keeping its row and column up to date\n"
+" */\n"
+"static void lexer_consume(Lexer *l, size_t end) {\n"
+"\tfor(; l->offset < end; l->offset += 1) {\n"
+"\t\tunsigned char c = (unsigned char) l->source[l->offset];\n"
+"\n"
+"\t\tif(c == '\\n') {\n"
+"\t\t\tl->row += 1;\n"
+"\t\t\tl->col = 1;\n"
+"\t\t} else if((c & 0xC0) != 0x80) {\n"
+"\t\t\tl->col += 1;\n"
+"\t\t}\n"
+"\t}\n"
+"}\n"
+"/* lexer_new\n"
+" *\n"
+" * Creates a Lexer over text, the text must outlive the Lexer and its tokens\n"
+" */\n"
+"Lexer lexer_new(const char *source, size_t length) {\n"
+"\treturn (Lexer) {\n"
+"\t\t.source = source,\n"
+"\t\t.length = length,\n"
+"\t\t.offset = 0,\n"
+"\t\t.row = 1,\n"
+"\t\t.col = 1,\n"
+"\t};\n"
+"}\n"
+"/* lexer_next\n"
+" *\n"
+" * Skips whitespace then returns the longest token at the Lexer's position. Text that starts no\n"
+" * token is returned one codepoint at a time as TokenType_Invalid. At the end it returns TokenType_EOF.\n"
+" */\n"
+"Token lexer_next(Lexer *l) {\n"
+"\tconst unsigned char *source = (const unsigned char *) l->source;\n"
+"\n"
+"\twhile(l->offset < l->length && (source[l->offset] == ' ' || (source[l->offset] >= '\\t' && source[l->offset] <= '\\r'))) {\n"
+"\t\tlexer_consume(l, l->offset + 1);\n"
+"\t}\n"
+"\n"
+"\tToken result = {\n"
+"\t\t.lexeme = {\n"
+"\t\t\t.data = l->source + l->offset,\n"
+"\t\t\t.length = 0,\n"
+"\t\t},\n"
+"\t\t.tag = TokenType_EOF,\n"
+"\t\t.pos = {\n"
+"\t\t\t.row = l->row,\n"
+"\t\t\t.col = l->col,\n"
+"\t\t},\n"
+"\t};\n"
+"\n"
+"\tif(l->offset >= l->length) {\n"
+"\t\treturn result;\n"
+"\t}\n"
+"\n"
+"\tuint32_t state = LEXER_START;\n"
+"\tuint32_t tag = LEXER_NONE;\n"
+"\tsize_t end = l->offset;\n"
+"\n"
+"\t// Run until the DFA dies, remembering the last accepting position\n"
+"\tfor(size_t i = l->offset; i < l->length;) {\n"
+"\t\tsize_t size;\n"
+"\t\tutf8_int32_t codepoint = lexer_codepoint(l, i, &size);\n"
+"\n"
+"\t\tstate = lexer_transitions[state * LEXER_NUM_CLASSES + lexer_class(codepoint)];\n"
+"\n"
+"\t\tif(state == LEXER_DEAD) {\n"
+"\t\t\tbreak;\n"
+"\t\t}\n"
+"\n"
+"\t\ti += size;\n"
+"\n"
+"\t\tif(lexer_accept[state] != LEXER_NONE) {\n"
+"\t\t\ttag = lexer_accept[state];\n"
+"\t\t\tend = i;\n"
+"\t\t}\n"
+"\t}\n"
+"\n"
+"\tif(tag == LEXER_NONE) {\n"
+"\t\tsize_t size;\n"
+"\n"
+"\t\tlexer_codepoint(l, l->offset, &size);\n"
+"\t\tend = l->offset + size;\n"
+"\t\ttag = TokenType_Invalid;\n"
+"\t}\n"
+"\n"
+"\tresult.lexeme.length = end - l->offset;\n"
+"\tresult.tag = (TokenType) tag;\n"
+"\tlexer_consume(l, end);\n"
+"\n"
+"\treturn result;\n"
+"}\n";
 
 /* generate_lexer
  *
@@ -486,7 +517,8 @@ static void generate_ast(Context context, Grammar grammar) {
 	fprintf(context.ast_out.fp, "typedef enum ASTType {\n");
 
 	rule_set_iterate(grammar.rules, it1, {
-		if(!symbol_is_hoisted(it1->identifier) && !(it1->mask & RuleMask_Lexical) && !symbol_equals(it1->identifier, grammar.start->identifier)) {
+		// Same rules as the ASTNode union, hoisted rules are reduced into nodes too
+		if(!(it1->mask & RuleMask_Lexical) && !symbol_equals(it1->identifier, grammar.start->identifier)) {
 			fprintf(context.ast_out.fp, "\tASTType_");
 			print_symbol(context.ast_out.fp, it1->identifier);
 			fprintf(context.ast_out.fp, ",\n");
@@ -666,4 +698,218 @@ static void print_symbols(Context ctx, Grammar g) {
 	fprintf(fp, "};\n");
 
 	cvector_free(store);
+}
+
+/* parser_declarations
+ *
+ * Emitted before the per nonterminal reduce functions
+ */
+static const char *parser_declarations =
+"/* ast_push\n"
+" *\n"
+" * Finishes a reduce: pops the production's symbols off both stacks, stores the node, then pushes\n"
+" * the node and the state the goto table moves to\n"
+" *\n"
+" * RETURNS:\n"
+" * \tfalse if the goto table has no transition, the table and the driver disagree\n"
+" */\n"
+"static bool ast_push(AST *ast, cvector(ASTIndex) *node_stack, cvector(uint32_t) *state_stack, uint32_t production, ASTNode node) {\n"
+"\tfor(uint32_t i = 0; i < pop_count[production]; i += 1) {\n"
+"\t\tcvector_pop_back(*node_stack);\n"
+"\t\tcvector_pop_back(*state_stack);\n"
+"\t}\n"
+"\n"
+"\tParseTableGoto next = goto_table[*cvector_back(*state_stack) * GOTO_TABLE_COLUMNS + production_lhs[production]];\n"
+"\n"
+"\tif(next == GotoError) {\n"
+"\t\treturn false;\n"
+"\t}\n"
+"\n"
+"\tcvector_push_back(ast->nodes, node);\n"
+"\tcvector_push_back(*node_stack, (ASTIndex) (cvector_size(ast->nodes) - 1));\n"
+"\tcvector_push_back(*state_stack, next);\n"
+"\n"
+"\treturn true;\n"
+"}\n";
+
+/* parser_driver
+ *
+ * Emitted after parser_reduce, the shift reduce loop over the tables
+ */
+static const char *parser_driver =
+"/* parser_parse\n"
+" *\n"
+" * Parses text into an AST. Every symbol, terminals included, is a node in AST.nodes and every\n"
+" * ASTIndex and TokenIndex indexes AST.nodes. Children are stored before their parent so the root\n"
+" * is the last node. The text must outlive the AST, tokens point into it.\n"
+" *\n"
+" * On a syntax error the error is printed to stderr, nothing is recovered, and AST.nodes is NULL.\n"
+" */\n"
+"AST parser_parse(const char *source, size_t length) {\n"
+"\tAST result = {\n"
+"\t\t.scratch = NULL,\n"
+"\t\t.tokens = NULL,\n"
+"\t\t.nodes = NULL,\n"
+"\t};\n"
+"\tLexer lexer = lexer_new(source, length);\n"
+"\tcvector(ASTIndex) node_stack = NULL;\n"
+"\tcvector(uint32_t) state_stack = NULL;\n"
+"\tToken current = lexer_next(&lexer);\n"
+"\tbool done = false;\n"
+"\n"
+"\tcvector_push_back(state_stack, UINT32_C(0));\n"
+"\n"
+"\twhile(!done) {\n"
+"\t\tuint32_t state = *cvector_back(state_stack);\n"
+"\t\t// Invalid text is not a column of the action table\n"
+"\t\tParseTableAction action = current.tag == TokenType_Invalid ? ActionError : action_table[state * ACTION_TABLE_COLUMNS + (uint32_t) current.tag];\n"
+"\t\tuint32_t value = action & ParseTableActionValueMask;\n"
+"\t\tbool error = false;\n"
+"\n"
+"\t\tswitch(action >> ParseTableActionTypeShift) {\n"
+"\t\tcase ParseTableActionType_Shift: {\n"
+"\t\t\tASTNode node = {\n"
+"\t\t\t\t.token = current,\n"
+"\t\t\t\t.tag = ASTType_Token,\n"
+"\t\t\t};\n"
+"\n"
+"\t\t\tcvector_push_back(result.nodes, node);\n"
+"\t\t\tcvector_push_back(node_stack, (ASTIndex) (cvector_size(result.nodes) - 1));\n"
+"\t\t\tcvector_push_back(state_stack, value);\n"
+"\t\t\tcurrent = lexer_next(&lexer);\n"
+"\t\t\tbreak;\n"
+"\t\t}\n"
+"\t\tcase ParseTableActionType_Reduce:\n"
+"\t\t\terror = !parser_reduce(&result, &node_stack, &state_stack, value);\n"
+"\t\t\tbreak;\n"
+"\t\tcase ParseTableActionType_Accept:\n"
+"\t\t\tdone = true;\n"
+"\t\t\tbreak;\n"
+"\t\tdefault:\n"
+"\t\t\terror = true;\n"
+"\t\t\tbreak;\n"
+"\t\t}\n"
+"\n"
+"\t\tif(error) {\n"
+"\t\t\tif(current.tag == TokenType_Invalid) {\n"
+"\t\t\t\tfprintf(stderr, \"%u:%u: invalid text '%.*s'\\n\", current.pos.row, current.pos.col, (int) current.lexeme.length, current.lexeme.data);\n"
+"\t\t\t} else if(current.tag == TokenType_EOF) {\n"
+"\t\t\t\tfprintf(stderr, \"%u:%u: unexpected end of input\\n\", current.pos.row, current.pos.col);\n"
+"\t\t\t} else {\n"
+"\t\t\t\tfprintf(stderr, \"%u:%u: unexpected %s '%.*s'\\n\", current.pos.row, current.pos.col, symbols[current.tag], (int) current.lexeme.length, current.lexeme.data);\n"
+"\t\t\t}\n"
+"\n"
+"\t\t\tcvector_free(result.nodes);\n"
+"\t\t\tresult.nodes = NULL;\n"
+"\t\t\tdone = true;\n"
+"\t\t}\n"
+"\t}\n"
+"\n"
+"\tcvector_free(node_stack);\n"
+"\tcvector_free(state_stack);\n"
+"\n"
+"\treturn result;\n"
+"}\n";
+
+/* generate_parser
+ *
+ * Emits the parser: one ast_new_<nonterminal> per ASTNode union member that builds the node of each
+ * of its productions, parser_reduce to dispatch a production to them, and the fixed driver.
+ *
+ * A production's id is the first production of its nonterminal plus its definition index, the
+ * numbering of parse_table_productions.
+ */
+static void generate_parser(Context context, Grammar grammar, ParseTable table) {
+	FILE *fp = context.parser_out.fp;
+
+	fputs(parser_declarations, fp);
+
+	rule_set_iterate(grammar.rules, it1, {
+		bool found = true;
+		size_t lhs = symbol_set_index(grammar.nonterminals, it1->identifier, &found);
+		bool alternates = cvector_size(it1->definitions) > 1;
+		size_t base = 0;
+
+		if((it1->mask & RuleMask_Lexical) || symbol_equals(it1->identifier, grammar.start->identifier) || !found) {
+			continue;
+		}
+
+		// Productions are grouped by nonterminal, the first with this lhs is the first definition
+		while(base < table.num_productions && table.productions[base].lhs != lhs) {
+			base += 1;
+		}
+
+		fprintf(fp, "static bool ast_new_");
+		print_symbol(fp, it1->identifier);
+		fprintf(fp, "(AST *ast, cvector(ASTIndex) *node_stack, cvector(uint32_t) *state_stack, uint32_t production) {\n");
+		fprintf(fp, "\tconst ASTIndex *children = *node_stack + cvector_size(*node_stack) - pop_count[production];\n");
+		fprintf(fp, "\tASTNode node = {\n");
+		fprintf(fp, "\t\t.tag = ASTType_");
+		print_symbol(fp, it1->identifier);
+		fprintf(fp, ",\n");
+		fprintf(fp, "\t};\n");
+		fprintf(fp, "\n");
+		fprintf(fp, "\t(void) children;\n");
+		fprintf(fp, "\n");
+		fprintf(fp, "\tswitch(production) {\n");
+
+		for(size_t i = 0; i < cvector_size(it1->definitions); i += 1) {
+			fprintf(fp, "\tcase %zu:\n", base + i);
+
+			if(alternates) {
+				fprintf(fp, "\t\tnode.");
+				print_symbol(fp, it1->identifier);
+				fprintf(fp, ".tag = %zu;\n", i);
+			}
+
+			for(size_t j = 0; j < cvector_size(it1->definitions[i]); j += 1) {
+				fprintf(fp, "\t\tnode.");
+				print_symbol(fp, it1->identifier);
+
+				if(alternates) {
+					fprintf(fp, "._c%zu", i);
+				}
+
+				fprintf(fp, "._%zu = children[%zu];\n", j, j);
+			}
+
+			fprintf(fp, "\t\tbreak;\n");
+		}
+
+		fprintf(fp, "\tdefault:\n");
+		fprintf(fp, "\t\treturn false;\n");
+		fprintf(fp, "\t}\n");
+		fprintf(fp, "\n");
+		fprintf(fp, "\treturn ast_push(ast, node_stack, state_stack, production, node);\n");
+		fprintf(fp, "}\n");
+	});
+
+	fprintf(fp, "/* parser_reduce\n");
+	fprintf(fp, " *\n");
+	fprintf(fp, " * Reduces by a production, building the node of its nonterminal\n");
+	fprintf(fp, " *\n");
+	fprintf(fp, " * RETURNS:\n");
+	fprintf(fp, " * \tfalse if the production cannot be reduced, the start production is only ever accepted\n");
+	fprintf(fp, " */\n");
+	fprintf(fp, "static bool parser_reduce(AST *ast, cvector(ASTIndex) *node_stack, cvector(uint32_t) *state_stack, uint32_t production) {\n");
+	fprintf(fp, "\tswitch(production_lhs[production]) {\n");
+
+	rule_set_iterate(grammar.rules, it1, {
+		bool found = true;
+		size_t lhs = symbol_set_index(grammar.nonterminals, it1->identifier, &found);
+
+		if((it1->mask & RuleMask_Lexical) || symbol_equals(it1->identifier, grammar.start->identifier) || !found) {
+			continue;
+		}
+
+		fprintf(fp, "\tcase %zu:\n\t\treturn ast_new_", lhs);
+		print_symbol(fp, it1->identifier);
+		fprintf(fp, "(ast, node_stack, state_stack, production);\n");
+	});
+
+	fprintf(fp, "\t\tdefault: return false;\n");
+	fprintf(fp, "\t}\n");
+	fprintf(fp, "}\n");
+
+	fputs(parser_driver, fp);
 }
